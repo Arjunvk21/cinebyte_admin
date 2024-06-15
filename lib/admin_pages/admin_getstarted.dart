@@ -1,7 +1,10 @@
+import 'package:cinebyte_admin_webapp/admin_homepage.dart';
 import 'package:cinebyte_admin_webapp/admin_pages/admin_firstpage.dart';
 import 'package:cinebyte_admin_webapp/admin_pages/admin_forgot_password.dart';
 import 'package:cinebyte_admin_webapp/customadminattribute.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:fluttertoast/fluttertoast.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 class admin_getstarted extends StatefulWidget {
@@ -14,6 +17,8 @@ class admin_getstarted extends StatefulWidget {
 class _admin_getstartedState extends State<admin_getstarted> {
   final GlobalKey<FormState> _formkey = GlobalKey<FormState>();
   bool _issecurepassword = true;
+  final TextEditingController usernamecontroller = TextEditingController();
+  final TextEditingController passwordcontroller = TextEditingController();
   String? _validatepassword(value) {
     if (value!.isEmpty) {
       return 'Enter a password';
@@ -27,9 +32,25 @@ class _admin_getstartedState extends State<admin_getstarted> {
 
   void _submitform() {
     if (_formkey.currentState!.validate()) {
-      Navigator.of(context).push(MaterialPageRoute(
-        builder: (context) => admin_firstpage(),
-      ));
+      String username = usernamecontroller.text;
+      String password = passwordcontroller.text;
+      
+        if (username == 'admin@gmail.com' && password == 'Admin@123') {
+          Navigator.of(context).push(MaterialPageRoute(
+            builder: (context) => admin_homepage(),
+          ));
+        }else{
+          Fluttertoast.showToast(
+          msg: "Invalid credential",
+          toastLength: Toast.LENGTH_SHORT,
+          gravity: ToastGravity.CENTER,
+          timeInSecForIosWeb: 1,
+          backgroundColor: Colors.red,
+          textColor: Colors.white,
+          fontSize: 16.0,
+        );
+        }
+      
     }
   }
 
@@ -65,6 +86,7 @@ class _admin_getstartedState extends State<admin_getstarted> {
               SizedBox(
                 width: 400,
                 child: TextFormField(
+                  controller: usernamecontroller,
                   style: GoogleFonts.fugazOne(color: maintextcolor),
                   autovalidateMode: AutovalidateMode.onUserInteraction,
                   validator: (value) {
@@ -75,7 +97,7 @@ class _admin_getstartedState extends State<admin_getstarted> {
                   },
                   decoration: InputDecoration(
                       label: Text(
-                        'Username',
+                        'Email',
                         style: GoogleFonts.fugazOne(
                             color: const Color.fromARGB(142, 158, 158, 158)),
                       ),
@@ -84,8 +106,10 @@ class _admin_getstartedState extends State<admin_getstarted> {
                 ),
               ),
               SizedBox(height: 30),
-              SizedBox(width: 400,
+              SizedBox(
+                width: 400,
                 child: TextFormField(
+                  controller: passwordcontroller,
                   style: GoogleFonts.fugazOne(color: maintextcolor),
                   autovalidateMode: AutovalidateMode.onUserInteraction,
                   validator: _validatepassword,
@@ -121,8 +145,7 @@ class _admin_getstartedState extends State<admin_getstarted> {
                   padding: const EdgeInsets.only(),
                   child: ElevatedButton(
                       style: ButtonStyle(
-                          backgroundColor: MaterialStatePropertyAll(
-                              textcolor),
+                          backgroundColor: MaterialStatePropertyAll(textcolor),
                           minimumSize: MaterialStatePropertyAll(
                             Size(400, 50),
                           )),

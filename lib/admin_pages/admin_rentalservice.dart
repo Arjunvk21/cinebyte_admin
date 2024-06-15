@@ -1,15 +1,25 @@
 // ignore_for_file: avoid_unnecessary_containers, library_private_types_in_public_api
 
-import 'dart:html';
+import 'dart:io';
+import 'dart:math';
 
 import 'package:cinebyte_admin_webapp/admin_homepage.dart';
 import 'package:cinebyte_admin_webapp/admin_schedules_page.dart';
 import 'package:cinebyte_admin_webapp/admin_settings_page.dart';
 import 'package:cinebyte_admin_webapp/customadminattribute.dart';
+import 'package:cinebyte_admin_webapp/databasemethods.dart';
+import 'package:cinebyte_admin_webapp/models/rentalsModel.dart';
+import 'package:cinebyte_admin_webapp/services/rentalService.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/widgets.dart';
+import 'package:fluttertoast/fluttertoast.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:uuid/uuid.dart';
 
 // ignore: camel_case_types
 class admin_rentalservice extends StatefulWidget {
@@ -169,12 +179,12 @@ class _admin_rentalserviceState extends State<admin_rentalservice>
                                       children: [
                                         Icon(
                                           Icons.home,
-                                          color: textcolor,
+                                          color: Colors.white,
                                         ),
                                         Text(
                                           'Home',
                                           style: GoogleFonts.fugazOne(
-                                              fontSize: 12, color: textcolor),
+                                              fontSize: 12, color: Colors.white),
                                         )
                                       ],
                                     ),
@@ -198,15 +208,15 @@ class _admin_rentalserviceState extends State<admin_rentalservice>
                                     )),
                                     child: Column(
                                       children: [
-                                        const Icon(
+                                         Icon(
                                           Icons.menu,
-                                          color: Colors.white,
+                                          color:textcolor,
                                         ),
                                         Text(
                                           'Menu',
                                           style: GoogleFonts.fugazOne(
                                               fontSize: 12,
-                                              color: Colors.white),
+                                              color:textcolor),
                                         )
                                       ],
                                     ),
@@ -308,96 +318,11 @@ class _admin_rentalserviceState extends State<admin_rentalservice>
                                   Tab(
                                     child: App_custom_tabbar(
                                       title: 'Rental services',
-                                      dropdownButton:
-                                          DropdownButtonHideUnderline(
-                                        child: DropdownButton(
-                                          value: selectedValue,
-                                          dropdownColor: const Color.fromARGB(
-                                              255, 0, 0, 0),
-                                          icon: const Icon(
-                                            Icons.arrow_drop_down_outlined,
-                                            color: Colors.black,
-                                          ),
-                                          items: [
-                                            DropdownMenuItem(
-                                              // onTap: () =>const Coursestab(),
-                                              //where
-                                              value: 'Add product',
-                                              child: Text(
-                                                'Add product',
-                                                style: GoogleFonts.fugazOne(
-                                                    color: const Color(
-                                                        0xffFFC28C)),
-                                              ),
-                                            ),
-                                            DropdownMenuItem(
-                                              // onTap: () => ,
-                                              //where
-
-                                              value: 'Camera',
-                                              child: Text(
-                                                'Camera',
-                                                style: GoogleFonts.fugazOne(
-                                                    color: const Color(
-                                                        0xffFFC28C)),
-                                              ),
-                                            ),
-                                            DropdownMenuItem(
-                                              value: 'Lights',
-                                              child: Text(
-                                                'Lights',
-                                                style: GoogleFonts.fugazOne(
-                                                    color: const Color(
-                                                        0xffFFC28C)),
-                                              ),
-                                            ),
-                                            DropdownMenuItem(
-                                              value: 'Mics',
-                                              child: Text(
-                                                'Mics',
-                                                style: GoogleFonts.fugazOne(
-                                                    color: const Color(
-                                                        0xffFFC28C)),
-                                              ),
-                                            ),
-                                            DropdownMenuItem(
-                                              value: 'Others',
-                                              child: Text(
-                                                'Others',
-                                                style: GoogleFonts.fugazOne(
-                                                    color: const Color(
-                                                        0xffFFC28C)),
-                                              ),
-                                            )
-                                          ],
-                                          onChanged: (value) {
-                                            setState(() {
-                                              selectedValue = value;
-                                              print(
-                                                  '=================$selectedValue==============');
-                                            });
-                                            switch (value) {
-                                              case 'Add product':
-                                                tabController.animateTo(2);
-                                                break;
-                                              case 'Camera':
-                                                tabController.animateTo(2);
-                                                break;
-                                              case 'Lights':
-                                                tabController.animateTo(3);
-                                                break;
-                                              case 'Mics':
-                                                tabController.animateTo(4);
-                                                break;
-                                              case 'Others':
-                                                tabController.animateTo(5);
-                                                break;
-                                              default:
-                                                null;
-                                            }
+                                      iconbutton: IconButton(
+                                          onPressed: () {
+                                            _showaddAddRentalDialog(context);
                                           },
-                                        ),
-                                      ),
+                                          icon: const Icon(Icons.add)),
                                     ),
                                   ),
                                   Tab(
@@ -527,6 +452,7 @@ class Coursesview extends StatelessWidget {
   }
 }
 
+// Add product
 class Addproduct extends StatefulWidget {
   const Addproduct({
     super.key,
@@ -619,7 +545,7 @@ class _AddproductState extends State<Addproduct> {
   }
 }
 
-class Rentalview extends StatelessWidget {
+class Rentalview extends StatefulWidget {
   const Rentalview({
     super.key,
     required this.width,
@@ -628,84 +554,89 @@ class Rentalview extends StatelessWidget {
   final double width;
 
   @override
+  State<Rentalview> createState() => _RentalviewState();
+}
+
+class _RentalviewState extends State<Rentalview> {
+  Stream? rentalstream;
+
+  getRentalDetails() {
+    rentalstream = FirebaseFirestore.instance.collection('rentals').snapshots();
+  }
+
+  @override
+  void initState() {
+    // TODO: implement initState
+    getRentalDetails();
+    super.initState();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Container(
       child: Stack(
         children: [
-          ListView.builder(
-            itemBuilder: (context, index) {
-              return GestureDetector(
-                onTap: () => _showrentalDialog(context),
-                child: Container(
-                  margin: const EdgeInsets.only(
-                      left: 400, right: 400, top: 20, bottom: 20),
-                  width: width,
-                  height: 200,
-                  decoration: BoxDecoration(
-                      color: const Color.fromARGB(255, 229, 206, 177),
-                      borderRadius: BorderRadius.circular(20)),
-                  child: Column(
-                    children: [
-                      Row(
-                        children: [
-                          Padding(
-                            padding: const EdgeInsets.only(top: 10, left: 10),
-                            child: Text(
-                              '17000/Day',
+          StreamBuilder(
+              stream: rentalstream,
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                return ListView.builder(
+                  itemBuilder: (context, index) {
+                    DocumentSnapshot ds = snapshot.data!.docs[index];
+                    return GestureDetector(
+                      onTap: () {
+                        _showrentalDialog(context, ds);
+                      },
+                      child: Container(
+                        margin: const EdgeInsets.only(
+                            left: 400, right: 400, top: 20, bottom: 20),
+                        width: widget.width,
+                        height: 200,
+                        decoration: BoxDecoration(
+                            color: const Color.fromARGB(255, 229, 206, 177),
+                            borderRadius: BorderRadius.circular(20)),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                          children: [
+                            Container(
+                              height: 100,
+                              width: 200,
+                              child: Image.network(
+                                ds['productImage'],
+                              ),
+                            ),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Center(
+                                  child: Text(
+                                    ds['productName'],
+                                    style: GoogleFonts.fugazOne(
+                                      color:
+                                          const Color.fromARGB(255, 46, 53, 62),
+                                      fontSize: 18,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            Text(
+                              ds['productratePerDay'],
                               style: GoogleFonts.fugazOne(
                                 color: const Color.fromARGB(255, 46, 53, 62),
                                 fontSize: 18,
                               ),
                             ),
-                          ),
-                          const SizedBox(
-                            width: 290,
-                          ),
-                          IconButton(
-                              onPressed: () {},
-                              icon: Icon(
-                                Icons.favorite,
-                                color: Colors.red[600],
-                              ))
-                        ],
+                          ],
+                        ),
                       ),
-                      Image.asset(
-                        'images/cam.png',
-                        scale: 2,
-                      ),
-                      const SizedBox(
-                        height: 20,
-                      ),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Center(
-                            child: Padding(
-                              padding: const EdgeInsets.only(left: 140),
-                              child: Text(
-                                'Sony Alpha 7',
-                                style: GoogleFonts.fugazOne(
-                                  color: const Color.fromARGB(255, 46, 53, 62),
-                                  fontSize: 18,
-                                ),
-                              ),
-                            ),
-                          ),
-                          Padding(
-                            padding: const EdgeInsets.only(left: 80),
-                            child: IconButton(
-                                onPressed: () {},
-                                icon: const Icon(Icons.shopping_cart)),
-                          )
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            },
-            itemCount: 5,
-          ),
+                    );
+                  },
+                  itemCount: snapshot.data!.docs.length,
+                );
+              }),
           // const Positioned(
           //   child: nestedtab(),
           // ),
@@ -715,30 +646,70 @@ class Rentalview extends StatelessWidget {
   }
 }
 
-class Castingview extends StatelessWidget {
+class Castingview extends StatefulWidget {
   const Castingview({
     super.key,
   });
 
   @override
+  State<Castingview> createState() => _CastingviewState();
+}
+
+class _CastingviewState extends State<Castingview> {
+  Stream? castingstream;
+  getCastingData() {
+    castingstream =
+        FirebaseFirestore.instance.collection('castingcalls').snapshots();
+  }
+
+  @override
+  void initState() {
+    getCastingData();
+    super.initState();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Container(
-      child: ListView.builder(
-        itemBuilder: (context, index) {
-          return GestureDetector(
-            onTap: () => _showcastingDialog(context),
-            child: Container(
-              margin: const EdgeInsets.only(left: 300, right: 300, top: 20),
-              height: 250,
-              decoration: BoxDecoration(
-                color: const Color.fromARGB(255, 229, 206, 177),
-                borderRadius: BorderRadius.circular(20),
+      child: StreamBuilder(
+          stream: castingstream,
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(
+                child: CircularProgressIndicator(),
+              );
+            }
+            if (snapshot.hasData && snapshot.data!.docs.length != 0) {
+              return ListView.builder(
+                itemBuilder: (context, index) {
+                  DocumentSnapshot ds = snapshot.data!.docs[index];
+                  return GestureDetector(
+                    onTap: () => _showcastingDialog(context, ds),
+                    child: Container(
+                      child: Image.network(
+                        ds['poster'],
+                        fit: BoxFit.cover,
+                      ),
+                      margin:
+                          const EdgeInsets.only(left: 300, right: 300, top: 20),
+                      height: 250,
+                      decoration: BoxDecoration(
+                        color: const Color.fromARGB(255, 229, 206, 177),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                    ),
+                  );
+                },
+                itemCount: snapshot.data!.docs.length,
+              );
+            }
+            return Center(
+              child: Text(
+                'No casting calls uploaded',
+                style: GoogleFonts.fugazOne(color: Colors.white),
               ),
-            ),
-          );
-        },
-        itemCount: 10,
-      ),
+            );
+          }),
     );
   }
 }
@@ -779,112 +750,171 @@ class Networkingview extends StatelessWidget {
   }
 }
 
-class Scriptview extends StatelessWidget {
+class Scriptview extends StatefulWidget {
   const Scriptview({
     super.key,
   });
 
   @override
+  State<Scriptview> createState() => _ScriptviewState();
+}
+
+class _ScriptviewState extends State<Scriptview> {
+  Stream? scriptStream;
+  String? scriptUID;
+  DocumentSnapshot? userDoc;
+  getscripts() {
+    scriptStream = FirebaseFirestore.instance.collection('Scripts').snapshots();
+  }
+
+  getUser(String user) async {
+    userDoc =
+        await FirebaseFirestore.instance.collection('users').doc(user).get();
+    // print(userDoc!.data());
+  }
+
+  @override
+  void initState() {
+    getscripts();
+    super.initState();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return ListView.builder(
-      itemBuilder: (context, index) {
-        return GestureDetector(
-          onTap: () => _showscriptDialog(context),
-          child: Container(
-            margin: const EdgeInsets.only(top: 20, left: 300, right: 300),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(15),
-              color: const Color.fromARGB(255, 234, 210, 178),
-            ),
-            width: 800,
-            height: 180,
-            child: Column(
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.start,
-                  children: [
-                    const Padding(
-                      padding: EdgeInsets.only(left: 20, top: 20),
-                      child: CircleAvatar(
-                        backgroundImage: NetworkImage(
-                            'https://www.shutterstock.com/image-photo/head-shot-portrait-close-smiling-600nw-1714666150.jpg'),
-                        radius: 25,
-                      ),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.only(top: 20, left: 10),
-                      child: Text(
-                        'Alex D Paul',
-                        style: GoogleFonts.acme(
-                          color: const Color(0xff2D3037),
-                          fontSize: 20,
-                        ),
-                      ),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.only(left: 400),
-                      child: Text(
-                        '10/11/2023',
-                        style: GoogleFonts.acme(color: const Color(0xff2D3037)),
-                      ),
-                    ),
-                  ],
-                ),
-                const Padding(
-                  padding: EdgeInsets.only(),
-                  child: Divider(
-                    thickness: 1,
-                    color: Color(0xff36393F),
+    return StreamBuilder(
+        stream: scriptStream,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(
+              child: CircularProgressIndicator(),
+            );
+          }
+          return ListView.builder(
+            itemBuilder: (context, index) {
+              DocumentSnapshot ds = snapshot.data!.docs[index];
+              return GestureDetector(
+                onTap: () => _showscriptDialog(context, ds),
+                child: Container(
+                  margin: const EdgeInsets.only(top: 20, left: 300, right: 300),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(15),
+                    color: const Color.fromARGB(255, 234, 210, 178),
                   ),
-                ),
-                Center(
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.start,
+                  width: 800,
+                  height: 180,
+                  child: Column(
                     children: [
-                      Center(
-                        child: Text(
-                          '''       A young scientist developing a revolutionary energy source must choose  between personal gain and saving the planet. ''',
-                          style: GoogleFonts.lateef(),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                        children: [
+                          FutureBuilder(
+                              future: getUser(ds['userid']),
+                              builder: (context, snapshot) {
+                                if (snapshot.connectionState ==
+                                    ConnectionState.waiting) {
+                                  return const Center(
+                                    child: CircularProgressIndicator(),
+                                  );
+                                }
+                                return Padding(
+                                  padding:
+                                      const EdgeInsets.only(left: 20, top: 20),
+                                  child: Container(
+                                    decoration: const ShapeDecoration(
+                                        shape: CircleBorder()),
+                                    height: 50,
+                                    width: 50,
+                                    child: userDoc!.exists &&
+                                            userDoc!['image'] != ""
+                                        ? Image.network(userDoc!['image'])
+                                        : const Center(
+                                            child: Icon(Icons.person),
+                                          ),
+                                  ),
+                                );
+                              }),
+                          Text(
+                            ds['scriptname'],
+                            style: GoogleFonts.acme(
+                              color: const Color(0xff2D3037),
+                              fontSize: 20,
+                            ),
+                          ),
+                          Text(
+                            ds['date'],
+                            style: GoogleFonts.acme(
+                                color: const Color(0xff2D3037)),
+                          ),
+                        ],
+                      ),
+                      const Padding(
+                        padding: EdgeInsets.only(),
+                        child: Divider(
+                          thickness: 1,
+                          color: Color(0xff36393F),
                         ),
                       ),
+                      Center(
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                          children: [
+                            Center(
+                              child: Text(
+                                ds['scriptname'],
+                                style: GoogleFonts.acme(fontSize: 20),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Center(
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                          children: [
+                            Center(
+                              child: Text(
+                                ds['scriptdescription'],
+                                style: GoogleFonts.acme(),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Center(
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              ds['scriptgenre'],
+                              style: GoogleFonts.acme(),
+                            ),
+                          ],
+                        ),
+                      )
                     ],
                   ),
                 ),
-                Center(
-                  child: Padding(
-                    padding: const EdgeInsets.only(
-                      left: 17,
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Genre : Sci-Fi , Survival Thriller ',
-                          style: GoogleFonts.acme(),
-                        ),
-                      ],
-                    ),
-                  ),
-                )
-              ],
-            ),
-          ),
-        );
-      },
-      itemCount: 10,
-    );
+              );
+            },
+            itemCount: snapshot.data!.docs.length,
+          );
+        });
   }
 }
 
-void _showscriptDialog(BuildContext context) {
+void _showscriptDialog(BuildContext context, DocumentSnapshot ds) {
   showDialog(
     context: context,
-    builder: (context) => const AlertDialogScriptWithTextField(),
+    builder: (context) => AlertDialogScriptWithTextField(
+      docs: ds,
+    ),
   );
 }
 
 class AlertDialogScriptWithTextField extends StatefulWidget {
-  const AlertDialogScriptWithTextField({super.key});
+  DocumentSnapshot? docs;
+
+  AlertDialogScriptWithTextField({super.key, this.docs});
 
   @override
   _AlertDialogScriptWithTextFieldState createState() =>
@@ -920,15 +950,29 @@ class _AlertDialogScriptWithTextFieldState
                   const Padding(
                     padding: EdgeInsets.only(left: 570),
                     child: CircleAvatar(
-                      backgroundImage: NetworkImage(
-                          'https://www.shutterstock.com/image-photo/head-shot-portrait-close-smiling-600nw-1714666150.jpg'),
+                      backgroundImage: NetworkImage(''),
                       radius: 25,
                     ),
                   ),
                   Padding(
                     padding: const EdgeInsets.only(left: 300),
                     child: GestureDetector(
-                      // onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (context) => ,)),
+                      onTap: () async {
+                        await FirebaseFirestore.instance
+                            .collection('Scripts')
+                            .doc(widget.docs!['scriptid'])
+                            .delete()
+                            .then((value) => Fluttertoast.showToast(
+                                  msg: "Script Deleted",
+                                  toastLength: Toast.LENGTH_SHORT,
+                                  gravity: ToastGravity.CENTER,
+                                  timeInSecForIosWeb: 1,
+                                  backgroundColor: Colors.red,
+                                  textColor: Colors.white,
+                                  fontSize: 16.0,
+                                ));
+                        Navigator.of(context).pop();
+                      },
                       child: Container(
                         height: 38,
                         width: 100,
@@ -965,7 +1009,7 @@ class _AlertDialogScriptWithTextFieldState
                 top: 20,
               ),
               child: Text(
-                'Alex D Paul',
+                '',
                 style: GoogleFonts.acme(
                   color: const Color(0xff2D3037),
                   fontSize: 20,
@@ -976,7 +1020,7 @@ class _AlertDialogScriptWithTextFieldState
               padding: const EdgeInsets.only(),
               child: Center(
                 child: Text(
-                  '10/11/2023',
+                  widget.docs?['date'],
                   style: GoogleFonts.acme(color: const Color(0xff2D3037)),
                 ),
               ),
@@ -994,7 +1038,7 @@ class _AlertDialogScriptWithTextFieldState
                 children: [
                   Center(
                     child: Text(
-                      '''       A young scientist developing a revolutionary energy source must choose  between personal gain and saving the planet. ''',
+                      widget.docs?['scriptdescription'],
                       style: GoogleFonts.lateef(fontSize: 20),
                     ),
                   ),
@@ -1010,7 +1054,7 @@ class _AlertDialogScriptWithTextFieldState
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Text(
-                      'Genre : Sci-Fi , Survival Thriller ',
+                      widget.docs?['scriptgenre'],
                       style: GoogleFonts.acme(fontSize: 20),
                     ),
                   ],
@@ -1239,192 +1283,18 @@ class _AlertDialognetworkingWithTextFieldState
   } //
 }
 
-// void _showDialog(BuildContext context) {
-//   showDialog(
-//     context: context,
-//     builder: (context) => AlertDialogWithTextField(),
-//   );
-// }
-
-// class AlertDialogWithTextField extends StatefulWidget {
-//   @override
-//   _AlertDialogWithTextFieldState createState() =>
-//       _AlertDialogWithTextFieldState();
-// }
-
-// class _AlertDialogWithTextFieldState extends State<AlertDialogWithTextField> {
-//   final TextEditingController _controller = TextEditingController();
-
-//   @override
-//   Widget build(BuildContext context) {
-//     return Dialog(
-//         child: Container(
-//       height: 400,
-//       width: 1200,
-//       decoration: BoxDecoration(
-//         borderRadius: BorderRadius.circular(10),
-//         color: const Color(0xff36393F),
-//       ),
-//       child: Container(
-//         // width: 100,
-//         // height: 200,
-//         decoration: BoxDecoration(
-//           borderRadius: BorderRadius.circular(15),
-//           color: const Color(0xffEBC9A9),
-//         ),
-//         child: Column(
-//           children: [
-//             const Padding(
-//               padding: EdgeInsets.only(top: 20),
-//               child: Padding(
-//                 padding: EdgeInsets.only(),
-//                 child: CircleAvatar(
-//                   backgroundImage: NetworkImage(
-//                       'https://images.unsplash.com/photo-1511367461989-f85a21fda167?q=80&w=1931&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D'),
-//                   radius: 25,
-//                 ), // Replace with your desired icon
-//               ),
-//             ),
-//             Padding(
-//               padding: const EdgeInsets.only(
-//                 top: 20,
-//               ),
-//               child: Text(
-//                 'Group 1',
-//                 style: GoogleFonts.acme(
-//                   color: const Color(0xff2D3037),
-//                   fontSize: 20,
-//                 ),
-//               ),
-//             ),
-//             Padding(
-//               padding: const EdgeInsets.only(),
-//               child: Center(
-//                 child: Text(
-//                   '10/11/2023',
-//                   style: GoogleFonts.acme(color: const Color(0xff2D3037)),
-//                 ),
-//               ),
-//             ),
-//             const Padding(
-//               padding: EdgeInsets.only(),
-//               child: Divider(
-//                 thickness: 1,
-//                 color: Color(0xff36393F),
-//               ),
-//             ),
-//             Center(
-//               child: Row(
-//                 mainAxisAlignment: MainAxisAlignment.center,
-//                 children: [
-//                   Center(
-//                     child: Text(
-//                       'Created by Rayyan K',
-//                       style: GoogleFonts.lateef(fontSize: 20),
-//                     ),
-//                   ),
-//                 ],
-//               ),
-//             ),
-//             Center(
-//               child: Padding(
-//                 padding: const EdgeInsets.only(
-//                   left: 17,
-//                 ),
-//                 child: Row(
-//                   mainAxisAlignment: MainAxisAlignment.center,
-//                   children: [
-//                     Text(
-//                       'Group  : 275 Members',
-//                       style: GoogleFonts.acme(fontSize: 20),
-//                     ),
-//                   ],
-//                 ),
-//               ),
-//             ),
-//             Row(
-//               mainAxisAlignment: MainAxisAlignment.center,
-//               children: [
-//                 Padding(
-//                   padding: const EdgeInsets.all(20),
-//                   child: GestureDetector(
-//                     onTap: () {
-//                       showDialog(
-//                         context: context,
-//                         builder: (context) => AlertDialog(
-//                           title: Text(
-//                             'Are you sure?',
-//                             style: GoogleFonts.fugazOne(color: Colors.black),
-//                           ),
-//                           actions: [
-//                             TextButton(
-//                                 onPressed: () {
-//                                   Navigator.of(context).pop();
-//                                 },
-//                                 child: Text(
-//                                   'Yes',
-//                                   style:
-//                                       GoogleFonts.fugazOne(color: Colors.black),
-//                                 )),
-//                             TextButton(
-//                                 onPressed: () {
-//                                   Navigator.of(context).pop();
-//                                 },
-//                                 child: Text(
-//                                   'No',
-//                                   style:
-//                                       GoogleFonts.fugazOne(color: Colors.black),
-//                                 ))
-//                           ],
-//                         ),
-//                       );
-//                     },
-//                     child: Container(
-//                       height: 38,
-//                       width: 100,
-//                       color: const Color(0xff2D3037),
-//                       child: Center(
-//                           child: Text(
-//                         'Delete',
-//                         style: GoogleFonts.fugazOne(color: Colors.white),
-//                       )),
-//                     ),
-//                   ),
-//                 ),
-//                 Padding(
-//                   padding: const EdgeInsets.all(20),
-//                   child: GestureDetector(
-//                     onTap: () => Navigator.of(context).pop(),
-//                     child: Container(
-//                       height: 38,
-//                       width: 100,
-//                       color: const Color(0xff2D3037),
-//                       child: Center(
-//                           child: Text(
-//                         'Close',
-//                         style: GoogleFonts.fugazOne(color: Colors.white),
-//                       )),
-//                     ),
-//                   ),
-//                 ),
-//               ],
-//             ),
-//           ],
-//         ),
-//       ),
-//     ));
-//   }
-// }
-
-void _showcastingDialog(BuildContext context) {
+void _showcastingDialog(BuildContext context, DocumentSnapshot data) {
   showDialog(
     context: context,
-    builder: (context) => const AlertDialogcastingWithTextField(),
+    builder: (context) => AlertDialogcastingWithTextField(
+      castImage: data,
+    ),
   );
 }
 
 class AlertDialogcastingWithTextField extends StatefulWidget {
-  const AlertDialogcastingWithTextField({super.key});
+  DocumentSnapshot? castImage;
+  AlertDialogcastingWithTextField({super.key, this.castImage});
 
   @override
   _AlertDialogcastingWithTextFieldState createState() =>
@@ -1434,71 +1304,56 @@ class AlertDialogcastingWithTextField extends StatefulWidget {
 class _AlertDialogcastingWithTextFieldState
     extends State<AlertDialogcastingWithTextField> {
   final TextEditingController _controller = TextEditingController();
+  Stream? caststream = databaseMethods().castingcallStream;
+  @override
+  void initState() {
+    caststream;
+    // TODO: implement initState
+    super.initState();
+  }
 
   @override
   Widget build(BuildContext context) {
     return Dialog(
-        child: Container(
-      height: 400,
-      width: 1200,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(10),
-        color: const Color(0xff36393F),
-      ),
-      child: Container(
-        // width: 100,
-        // height: 200,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(15),
-          color: const Color(0xffEBC9A9),
+        child: Stack(
+      children: [
+        Container(
+          height: 400,
+          width: 1200,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(10),
+            color: const Color(0xff36393F),
+          ),
+          child: Image.network(
+            widget.castImage?['poster'],
+            fit: BoxFit.cover,
+          ),
         ),
-        child: Column(
-          children: [
-            SizedBox(
-              height: 300,
-              width: 1200,
-              child: Image.network(
-                'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcROSMet3vkB1L6fVSNH5CZl8HoCmxUMjaMNuQ&s',
-                fit: BoxFit.fill,
-              ),
-            ),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
+        Positioned(
+            top: 300,
+            left: 500,
+            child: Row(
+              // Container(color: Colors.red,height: 100,width: 200,)Row(
               children: [
-                Padding(
-                  padding: const EdgeInsets.all(20),
-                  child: GestureDetector(
-                    onTap: () {
-                      showDialog(
-                        context: context,
-                        builder: (context) => AlertDialog(
-                          title: Text(
-                            'Are you sure?',
-                            style: GoogleFonts.fugazOne(color: Colors.black),
-                          ),
-                          actions: [
-                            TextButton(
-                                onPressed: () {
-                                  Navigator.of(context).pop();
-                                },
-                                child: Text(
-                                  'Yes',
-                                  style:
-                                      GoogleFonts.fugazOne(color: Colors.black),
-                                )),
-                            TextButton(
-                                onPressed: () {
-                                  Navigator.of(context).pop();
-                                },
-                                child: Text(
-                                  'No',
-                                  style:
-                                      GoogleFonts.fugazOne(color: Colors.black),
-                                ))
-                          ],
-                        ),
-                      );
-                    },
+                GestureDetector(
+                  onTap: () {
+                    FirebaseFirestore.instance
+                        .collection('castingcalls')
+                        .doc(widget.castImage!['castingId'])
+                        .delete()
+                        .then((value) => Fluttertoast.showToast(
+                              msg: "Casting Call Deleted",
+                              toastLength: Toast.LENGTH_SHORT,
+                              gravity: ToastGravity.CENTER,
+                              timeInSecForIosWeb: 1,
+                              backgroundColor: Colors.green,
+                              textColor: Colors.white,
+                              fontSize: 16.0,
+                            ));
+                    Navigator.of(context).pop();
+                  },
+                  child: Padding(
+                    padding: const EdgeInsets.all(20),
                     child: Container(
                       height: 38,
                       width: 100,
@@ -1511,40 +1366,45 @@ class _AlertDialogcastingWithTextFieldState
                     ),
                   ),
                 ),
-                Padding(
-                  padding: const EdgeInsets.all(20),
-                  child: GestureDetector(
-                    onTap: () => Navigator.of(context).pop(),
-                    child: Container(
-                      height: 38,
-                      width: 100,
-                      color: const Color(0xff2D3037),
-                      child: Center(
-                          child: Text(
-                        'Close',
-                        style: GoogleFonts.fugazOne(color: Colors.white),
-                      )),
-                    ),
+                GestureDetector(
+                  onTap: () => Navigator.of(context).pop(),
+                  child: Container(
+                    height: 38,
+                    width: 100,
+                    color: const Color(0xff2D3037),
+                    child: Center(
+                        child: Text(
+                      'Close',
+                      style: GoogleFonts.fugazOne(color: Colors.white),
+                    )),
                   ),
                 ),
               ],
-            ),
-          ],
-        ),
-      ),
+            )),
+      ],
     ));
   }
 }
 
-void _showrentalDialog(BuildContext context) {
+void _showrentalDialog(BuildContext context, DocumentSnapshot data) {
   showDialog(
     context: context,
-    builder: (context) => const AlertDialogrentalWithTextField(),
+    builder: (context) => AlertDialogrentalWithTextField(rentdata: data),
+  );
+}
+
+void _showAddRentalDialog(BuildContext context) {
+  showDialog(
+    context: context,
+    builder: (context) => const Addproduct(
+      width: 250,
+    ),
   );
 }
 
 class AlertDialogrentalWithTextField extends StatefulWidget {
-  const AlertDialogrentalWithTextField({super.key});
+  DocumentSnapshot? rentdata;
+  AlertDialogrentalWithTextField({super.key, this.rentdata});
 
   @override
   _AlertDialogrentalWithTextFieldState createState() =>
@@ -1557,175 +1417,186 @@ class _AlertDialogrentalWithTextFieldState
   final TextEditingController _descriptionController = TextEditingController();
   final TextEditingController _pricecontroller = TextEditingController();
   bool _isEditable = false;
+  final GlobalKey<FormState> _rentaleditingkey = GlobalKey<FormState>();
 
   @override
   Widget build(BuildContext context) {
     return Dialog(
-        child: Container(
-      height: 400,
-      width: 1200,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(10),
-        color: const Color(0xff36393F),
-      ),
+        child: Form(
+      key: _rentaleditingkey,
       child: Container(
-        // width: 100,
-        // height: 200,
+        height: 400,
+        width: 1200,
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(15),
-          color: const Color(0xffEBC9A9),
+          borderRadius: BorderRadius.circular(10),
+          color: const Color(0xff36393F),
         ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-          children: [
-            SizedBox(
-              height: 250,
-              width: 250,
-              child: Column(
-                children: [
-                  Image.asset('images/cam.png'),
-                  // SizedBox(
-                  //   height: 150,
-                  // ),
-                  SizedBox(
-                    width: 200,
-                    height: 50,
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        child: Container(
+          // width: 100,
+          // height: 200,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(15),
+            color: const Color(0xffEBC9A9),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: [
+              SizedBox(
+                height: 250,
+                width: 250,
+                child: Column(
+                  children: [
+                    Image.network(widget.rentdata?['productImage']),
+                  ],
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.only(
+                  top: 50,
+                ),
+                child: Column(
+                  children: [
+                    SizedBox(
+                        height: 50,
+                        width: 600,
+                        child: TextFormField(
+                          controller: _titleController,
+                          readOnly: !_isEditable,
+                          style: GoogleFonts.fugazOne(
+                              color: const Color(0xff2D3037)),
+                          decoration: InputDecoration(
+                              hintText: '${widget.rentdata?['productName']}',
+                              hintStyle:
+                                  const TextStyle(color: Color(0xff2D3037))),
+                        )),
+                    const SizedBox(
+                      height: 20,
+                    ),
+                    SizedBox(
+                        height: 100,
+                        width: 600,
+                        child: TextFormField(
+                          controller: _descriptionController,
+                          readOnly: !_isEditable,
+                          style: GoogleFonts.fugazOne(
+                              color: const Color(0xff2D3037)),
+                          keyboardType: TextInputType.multiline,
+                          minLines: 3, // This sets the initial number of lines
+                          maxLines: 5,
+                          decoration: InputDecoration(
+                            hintStyle:
+                                const TextStyle(color: Color(0xff2D3037)),
+                            hintText:
+                                '${widget.rentdata?['productDecription']}',
+                            border: const UnderlineInputBorder(),
+                          ),
+                        )),
+                    const SizedBox(
+                      height: 20,
+                    ),
+                    Row(
                       children: [
                         SizedBox(
-                          width: 50,
-                          height: 40,
-                          child: Image.asset('images/cam1.png'),
+                            height: 150,
+                            width: 460,
+                            child: TextFormField(
+                              controller: _pricecontroller,
+                              readOnly: !_isEditable,
+                              style: GoogleFonts.fugazOne(
+                                  color: const Color(0xff2D3037)),
+                              decoration: InputDecoration(
+                                hintStyle:
+                                    const TextStyle(color: Color(0xff2D3037)),
+                                hintText:
+                                    '${widget.rentdata?['productratePerDay']}',
+                              ),
+                            )),
+                        Padding(
+                          padding: const EdgeInsets.all(20),
+                          child: GestureDetector(
+                            onTap: () async {
+                              setState(() {
+                                _isEditable = !_isEditable;
+                                if (_isEditable) {
+                                  _titleController.clear();
+                                  _descriptionController.clear();
+                                  _pricecontroller.clear();
+                                }
+                              });
+                            },
+                            child: Container(
+                              height: 38,
+                              width: 100,
+                              color: const Color(0xff2D3037),
+                              child: Center(
+                                  child: Text(
+                                _isEditable ? 'Save' : 'Edit',
+                                style:
+                                    GoogleFonts.fugazOne(color: Colors.white),
+                              )),
+                            ),
+                          ),
                         ),
-                        const SizedBox(
-                          width: 10,
+                        Padding(
+                          padding: const EdgeInsets.all(20),
+                          child: GestureDetector(
+                            onTap: () async {
+                              try {
+                                String productId =
+                                    widget.rentdata?['rentalProductId'];
+                                await rentalService()
+                                    .deleteRentalProduct(productId);
+                                Navigator.of(context).pop();
+                              } catch (e) {
+                                Fluttertoast.showToast(
+                                  msg: "Unable to delete this Product",
+                                  toastLength: Toast.LENGTH_SHORT,
+                                  gravity: ToastGravity.BOTTOM,
+                                  backgroundColor: Colors.red,
+                                  textColor: Colors.white,
+                                  fontSize: 16.0,
+                                );
+                              }
+                            },
+                            child: Container(
+                              height: 38,
+                              width: 100,
+                              color: const Color(0xff2D3037),
+                              child: Center(
+                                  child: Text(
+                                'Delete',
+                                style:
+                                    GoogleFonts.fugazOne(color: Colors.white),
+                              )),
+                            ),
+                          ),
                         ),
-                        SizedBox(
-                          width: 50,
-                          height: 40,
-                          child: Image.asset('images/cam2.png'),
-                        ),
-                        const SizedBox(
-                          width: 10,
-                        ),
-                        SizedBox(
-                          width: 50,
-                          height: 40,
-                          child: Image.asset('images/cam3.png'),
+                        Padding(
+                          padding: const EdgeInsets.all(20),
+                          child: GestureDetector(
+                            onTap: () {
+                              Navigator.of(context).pop();
+                            },
+                            child: Container(
+                              height: 38,
+                              width: 100,
+                              color: const Color(0xff2D3037),
+                              child: Center(
+                                  child: Text(
+                                'Close',
+                                style:
+                                    GoogleFonts.fugazOne(color: Colors.white),
+                              )),
+                            ),
+                          ),
                         ),
                       ],
-                    ),
-                  )
-                ],
+                    )
+                  ],
+                ),
               ),
-            ),
-            Padding(
-              padding: const EdgeInsets.only(
-                top: 50,
-              ),
-              child: Column(
-                children: [
-                  SizedBox(
-                      height: 50,
-                      width: 600,
-                      child: TextFormField(
-                        controller: _titleController,
-                        readOnly: !_isEditable,
-                        style: GoogleFonts.fugazOne(
-                            color: const Color(0xff2D3037)),
-                        decoration: const InputDecoration(
-                            hintText: 'Sony Alpha 7 III',
-                            hintStyle: TextStyle(color: Color(0xff2D3037))),
-                      )),
-                  const SizedBox(
-                    height: 20,
-                  ),
-                  SizedBox(
-                      height: 100,
-                      width: 600,
-                      child: TextFormField(
-                        controller: _descriptionController,
-                        readOnly: !_isEditable,
-                        style: GoogleFonts.fugazOne(
-                            color: const Color(0xff2D3037)),
-                        keyboardType: TextInputType.multiline,
-                        minLines: 3, // This sets the initial number of lines
-                        maxLines: 5,
-                        decoration: const InputDecoration(
-                          hintStyle: TextStyle(color: Color(0xff2D3037)),
-                          hintText:
-                              'Sony Alpha ILCE-7M3K Full-Frame 24.2MP Mirrorless Digital SLR Camera\n with 28-70mm Zoom Lens (4K Full Frame, Real-Time \nEye Auto Focus, Tiltable LCD, Low Light Camera) \nwith Free Bag - Black',
-                          border: UnderlineInputBorder(),
-                        ),
-                      )),
-                  const SizedBox(
-                    height: 20,
-                  ),
-                  Row(
-                    children: [
-                      SizedBox(
-                          height: 150,
-                          width: 460,
-                          child: TextFormField(
-                            controller: _pricecontroller,
-                            readOnly: !_isEditable,
-                            style: GoogleFonts.fugazOne(
-                                color: const Color(0xff2D3037)),
-                            decoration: const InputDecoration(
-                              hintStyle: TextStyle(color: Color(0xff2D3037)),
-                              hintText: '10000/Day',
-                            ),
-                          )),
-                      Padding(
-                        padding: const EdgeInsets.all(20),
-                        child: GestureDetector(
-                          onTap: () {
-                            setState(() {
-                              _isEditable = !_isEditable;
-                              if (_isEditable) {
-                                _titleController.clear();
-                                _descriptionController.clear();
-                                _pricecontroller.clear();
-                              }
-                            });
-                          },
-                          child: Container(
-                            height: 38,
-                            width: 100,
-                            color: const Color(0xff2D3037),
-                            child: Center(
-                                child: Text(
-                              _isEditable ? 'Save' : 'Edit',
-                              style: GoogleFonts.fugazOne(color: Colors.white),
-                            )),
-                          ),
-                        ),
-                      ),
-                      Padding(
-                        padding: const EdgeInsets.all(20),
-                        child: GestureDetector(
-                          onTap: () {
-                            Navigator.of(context).pop();
-                          },
-                          child: Container(
-                            height: 38,
-                            width: 100,
-                            color: const Color(0xff2D3037),
-                            child: Center(
-                                child: Text(
-                              'Submit',
-                              style: GoogleFonts.fugazOne(color: Colors.white),
-                            )),
-                          ),
-                        ),
-                      ),
-                    ],
-                  )
-                ],
-              ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     ));
@@ -2169,304 +2040,400 @@ class _Alertdialogaddcourse2pageState extends State<Alertdialogaddcourse2page> {
   }
 }
 
-// //dropdown addproduct
-// void _showaddproductDialog(BuildContext context) {
-//   showDialog(
-//     context: context,
-//     builder: (context) => AlertDialogrentalWithTextField(),
-//   );
-// }
+void _showaddAddRentalDialog(BuildContext context) {
+  showDialog(
+      context: context, builder: (context) => const AlertdialogaddRental());
+}
 
-// class AlertDialogaddproductWithTextField extends StatefulWidget {
-//   @override
-//   _AlertDialogaddproductWithTextFieldState createState() =>
-//       _AlertDialogaddproductWithTextFieldState();
-// }
+class AlertdialogaddRental extends StatefulWidget {
+  const AlertdialogaddRental({super.key});
 
-// class _AlertDialogaddproductWithTextFieldState
-//     extends State<AlertDialogaddproductWithTextField> {
-//   final TextEditingController _titleController = TextEditingController();
-//   final TextEditingController _descriptionController = TextEditingController();
-//   final TextEditingController _pricecontroller = TextEditingController();
+  @override
+  State<AlertdialogaddRental> createState() => _AlertdialogaddRentalState();
+}
 
-//   @override
-//   Widget build(BuildContext context) {
-//     return Dialog(
-//         child: Container(
-//       height: 400,
-//       width: 1200,
-//       decoration: BoxDecoration(
-//         borderRadius: BorderRadius.circular(10),
-//         color: const Color(0xff36393F),
-//       ),
-//       child: Container(
-//         // width: 100,
-//         // height: 200,
-//         decoration: BoxDecoration(
-//           borderRadius: BorderRadius.circular(15),
-//           color: const Color(0xffEBC9A9),
-//         ),
-//         child: Row(
-//           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-//           children: [
-//             SizedBox(
-//               height: 250,
-//               width: 250,
-//               child: Column(
-//                 children: [
-//                   Image.asset('images/cam placeholder.png'),
-//                   // SizedBox(
-//                   //   height: 150,
-//                   // ),
-//                   SizedBox(
-//                     width: 200,
-//                     height: 50,
-//                     child: Row(
-//                       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-//                       children: [
-//                         SizedBox(
-//                           width: 50,
-//                           height: 40,
-//                           child: Image.asset('images/cam placeholder.png'),
-//                         ),
-//                         const SizedBox(
-//                           width: 10,
-//                         ),
-//                         SizedBox(
-//                           width: 50,
-//                           height: 40,
-//                           child: Image.asset('images/cam placeholder.png'),
-//                         ),
-//                         const SizedBox(
-//                           width: 10,
-//                         ),
-//                         SizedBox(
-//                           width: 50,
-//                           height: 40,
-//                           child: Image.asset('images/cam placeholder.png'),
-//                         ),
-//                       ],
-//                     ),
-//                   )
-//                 ],
-//               ),
-//             ),
-//             Padding(
-//               padding: const EdgeInsets.only(
-//                 top: 50,
-//               ),
-//               child: Column(
-//                 children: [
-//                   SizedBox(
-//                       height: 50,
-//                       width: 600,
-//                       child: TextFormField(
-//                         controller: _titleController,
-//                         style: GoogleFonts.fugazOne(color: const Color(0xff2D3037)),
-//                         decoration: const InputDecoration(
-//                             hintText: 'Product name',
-//                             hintStyle: TextStyle(color: Color(0xff2D3037))),
-//                       )),
-//                   const SizedBox(
-//                     height: 20,
-//                   ),
-//                   SizedBox(
-//                       height: 100,
-//                       width: 600,
-//                       child: TextFormField(
-//                         controller: _descriptionController,
+final TextEditingController productNameController = TextEditingController();
+final TextEditingController productDescriptionController =
+    TextEditingController();
+final TextEditingController productRateController = TextEditingController();
+final GlobalKey<FormState> _rentalkey = GlobalKey<FormState>();
 
-//                         style: GoogleFonts.fugazOne(color: const Color(0xff2D3037)),
-//                         keyboardType: TextInputType.multiline,
-//                         minLines: 3, // This sets the initial number of lines
-//                         maxLines: 5,
-//                         decoration: const InputDecoration(
-//                           hintStyle: TextStyle(color: Color(0xff2D3037)),
-//                           hintText: 'Product description',
-//                           border: UnderlineInputBorder(),
-//                         ),
-//                       )),
-//                   const SizedBox(
-//                     height: 20,
-//                   ),
-//                   Row(
-//                     children: [
-//                       SizedBox(
-//                           height: 150,
-//                           width: 460,
-//                           child: TextFormField(
-//                             controller: _pricecontroller,
-//                             style:
-//                                 GoogleFonts.fugazOne(color: const Color(0xff2D3037)),
-//                             decoration: const InputDecoration(
-//                               hintStyle: TextStyle(color: Color(0xff2D3037)),
-//                               hintText: 'Price/day',
-//                             ),
-//                           )),
-//                       Padding(
-//                         padding: const EdgeInsets.all(20),
-//                         child: GestureDetector(
-//                           onTap: () {
-//                             setState(() {
-//                               _titleController.text;
-//                               _descriptionController.text;
-//                               _pricecontroller.text;
-//                             });
-//                           },
-//                           child: Container(
-//                             height: 38,
-//                             width: 100,
-//                             color: const Color(0xff2D3037),
-//                             child: Center(
-//                                 child: Text(
-//                               'Save',
-//                               style: GoogleFonts.fugazOne(color: Colors.white),
-//                             )),
-//                           ),
-//                         ),
-//                       ),
-//                       Padding(
-//                         padding: const EdgeInsets.all(20),
-//                         child: GestureDetector(
-//                           onTap: () {
-//                             Navigator.of(context).pop();
-//                           },
-//                           child: Container(
-//                             height: 38,
-//                             width: 100,
-//                             color: const Color(0xff2D3037),
-//                             child: Center(
-//                                 child: Text(
-//                               'Submit',
-//                               style: GoogleFonts.fugazOne(color: Colors.white),
-//                             )),
-//                           ),
-//                         ),
-//                       ),
-//                     ],
-//                   )
-//                 ],
-//               ),
-//             ),
-//           ],
-//         ),
-//       ),
-//     ));
-//   }
-// }
-// //dropdown addproduct
+class _AlertdialogaddRentalState extends State<AlertdialogaddRental> {
+  @override
+  void initState() {
+    // TODO: implement initState
 
-// ignore: camel_case_types
-// class nestedtab extends StatefulWidget {
-  
-//   const nestedtab({super.key});
+    uploadRentalDetails();
+    super.initState();
+  }
 
-//   @override
-//   State<nestedtab> createState() => _nestedtabState();
-// }
+  Uint8List? file;
+  Future pickedImage() async {
+    if (kIsWeb) {
+      try {
+        final pickedImage =
+            await ImagePicker().pickImage(source: ImageSource.gallery);
 
-// class _nestedtabState extends State<nestedtab>
-//     with SingleTickerProviderStateMixin {
-      
-//   @override
-//   Widget build(BuildContext context) {
-//     return  DefaultTabController(
-//       length: 2,
-//       child: Scaffold(
-//         body: Column(
-//           children: [
-//             TabBar(tabs: [
-//               Tab(
-//                 child: App_custom_tabbar(title: 'Camera'),
-//               ),
-//               Tab(
-//                 child: App_custom_tabbar(title: 'Lights'),
-//               ),
-//               Tab(
-//                 child: App_custom_tabbar(title: 'Mics'),
-//               ),
-//               Tab(
-//                 child: App_custom_tabbar(title: 'Others'),
-//               ),
-//             ]),
-//             ListView.builder(
-//             itemBuilder: (context, index) {
-//               return GestureDetector(
-//                 onTap: () => _showrentalDialog(context),
-//                 child: Container(
-//                   margin: const EdgeInsets.only(
-//                       left: 400, right: 400, top: 20, bottom: 20),
-//                   width: width,
-//                   height: 200,
-//                   decoration: BoxDecoration(
-//                       color: const Color.fromARGB(255, 229, 206, 177),
-//                       borderRadius: BorderRadius.circular(20)),
-//                   child: Column(
-//                     children: [
-//                       Row(
-//                         children: [
-//                           Padding(
-//                             padding: const EdgeInsets.only(top: 10, left: 10),
-//                             child: Text(
-//                               '17000/Day',
-//                               style: GoogleFonts.fugazOne(
-//                                 color: const Color.fromARGB(255, 46, 53, 62),
-//                                 fontSize: 18,
-//                               ),
-//                             ),
-//                           ),
-//                           const SizedBox(
-//                             width: 290,
-//                           ),
-//                           IconButton(
-//                               onPressed: () {},
-//                               icon: Icon(
-//                                 Icons.favorite,
-//                                 color: Colors.red[600],
-//                               ))
-//                         ],
-//                       ),
-//                       Image.asset(
-//                         'images/cam.png',
-//                         scale: 2,
-//                       ),
-//                       const SizedBox(
-//                         height: 20,
-//                       ),
-//                       Row(
-//                         mainAxisAlignment: MainAxisAlignment.center,
-//                         children: [
-//                           Center(
-//                             child: Padding(
-//                               padding: const EdgeInsets.only(left: 140),
-//                               child: Text(
-//                                 'Sony Alpha 7',
-//                                 style: GoogleFonts.fugazOne(
-//                                   color: const Color.fromARGB(255, 46, 53, 62),
-//                                   fontSize: 18,
-//                                 ),
-//                               ),
-//                             ),
-//                           ),
-//                           Padding(
-//                             padding: const EdgeInsets.only(left: 80),
-//                             child: IconButton(
-//                                 onPressed: () {},
-//                                 icon: const Icon(Icons.shopping_cart)),
-//                           )
-//                         ],
-//                       ),
-//                     ],
-//                   ),
-//                 ),
-//               );
-//             },
-//             itemCount: 5,
-//           ),
-//           ],
-//         ),
-        
-//       ),
-//     );
-//   }
-// }
+        if (pickedImage != null) {
+          print('-------------------------$pickedImage----------------');
+          //   setState(() async {
+          //     // In web, pickedImage.path is a URL
+          var bytes = await pickedImage.readAsBytes();
+          setState(() {
+            file = bytes;
+          });
+          Fluttertoast.showToast(
+            msg: "Image selected",
+            toastLength: Toast.LENGTH_SHORT,
+            gravity: ToastGravity.BOTTOM,
+            backgroundColor: Colors.green,
+            textColor: Colors.white,
+            fontSize: 16.0,
+          );
+          //   });
+        } else {
+          Fluttertoast.showToast(
+            msg: "image selected",
+            toastLength: Toast.LENGTH_SHORT,
+            gravity: ToastGravity.BOTTOM,
+            backgroundColor: Colors.red,
+            textColor: Colors.white,
+            fontSize: 16.0,
+          );
+        }
+      } catch (e) {
+        print('------------------------------------$e------------------------');
+        Fluttertoast.showToast(
+          msg: "Error picking image: $e",
+          toastLength: Toast.LENGTH_SHORT,
+          gravity: ToastGravity.BOTTOM,
+          backgroundColor: Colors.red,
+          textColor: Colors.white,
+          fontSize: 16.0,
+        );
+      }
+    } else {
+      try {
+        final XFile? pickedImage =
+            await ImagePicker().pickImage(source: ImageSource.gallery);
+
+        if (pickedImage != null) {
+          var selected = File(pickedImage.path);
+          setState(() {
+            file = selected as Uint8List?;
+          });
+        } else {
+          Fluttertoast.showToast(
+            msg: "No image selected",
+            toastLength: Toast.LENGTH_SHORT,
+            gravity: ToastGravity.BOTTOM,
+            backgroundColor: Colors.red,
+            textColor: Colors.white,
+            fontSize: 16.0,
+          );
+        }
+      } catch (e) {
+        Fluttertoast.showToast(
+          msg: "Error picking image: $e",
+          toastLength: Toast.LENGTH_SHORT,
+          gravity: ToastGravity.BOTTOM,
+          backgroundColor: Colors.red,
+          textColor: Colors.white,
+          fontSize: 16.0,
+        );
+      }
+    }
+  }
+
+  // Future uploadRentalDetails() async {
+  //   if (file == null) {
+  //     Fluttertoast.showToast(
+  //       msg: "Please select an image first",
+  //       toastLength: Toast.LENGTH_SHORT,
+  //       gravity: ToastGravity.BOTTOM,
+  //       backgroundColor: Colors.red,
+  //       textColor: Colors.white,
+  //       fontSize: 16.0,
+  //     );
+  //     return;
+  //   }
+  //   try {
+  //     final currentTime = DateTime.now().millisecondsSinceEpoch.toString();
+  //     SettableMetadata metadata = SettableMetadata(contentType: 'image/jpeg');
+  //     UploadTask uploadTask = FirebaseStorage.instance
+  //         .ref()
+  //         .child('rentalimages/rentalImg$currentTime.jpeg')
+  //         .putFile(file!, metadata);
+  //     TaskSnapshot snapshot = await uploadTask;
+  //     String downloadUrl = await snapshot.ref.getDownloadURL();
+  //     var productId = Uuid().v1();
+  //     rentalsModel rentalmodel = rentalsModel(
+  //       rentalProductId: productId,
+  //       productName: productNameController.text,
+  //       productDecription: productDescriptionController.text,
+  //       productratePerDay: productRateController.text,
+  //       productImage: downloadUrl,
+  //     );
+  //     rentalService rentalservice = rentalService();
+  //     await rentalservice.createRentals(rentalmodel);
+  //     Fluttertoast.showToast(
+  //       msg: "Product uploaded",
+  //       toastLength: Toast.LENGTH_SHORT,
+  //       gravity: ToastGravity.CENTER,
+  //       timeInSecForIosWeb: 1,
+  //       backgroundColor: Colors.green,
+  //       textColor: Colors.white,
+  //       fontSize: 16.0,
+  //     );
+  //     Navigator.of(context).pop();
+  //   } catch (e) {
+  //     Fluttertoast.showToast(
+  //       msg: "Failed to upload Product",
+  //       toastLength: Toast.LENGTH_SHORT,
+  //       gravity: ToastGravity.CENTER,
+  //       timeInSecForIosWeb: 1,
+  //       backgroundColor: Colors.red,
+  //       textColor: Colors.white,
+  //       fontSize: 16.0,
+  //     );
+  //   }
+  // }
+
+  Future<void> uploadRentalDetails() async {
+    if (file == null) {
+      Fluttertoast.showToast(
+        msg: "Please select an image first",
+        toastLength: Toast.LENGTH_SHORT,
+        gravity: ToastGravity.BOTTOM,
+        backgroundColor: Colors.red,
+        textColor: Colors.white,
+        fontSize: 16.0,
+      );
+      return;
+    }
+
+    try {
+      final currentTime = DateTime.now().millisecondsSinceEpoch.toString();
+      SettableMetadata metadata = SettableMetadata(contentType: 'image/jpeg');
+      UploadTask uploadTask = FirebaseStorage.instance
+          .ref()
+          .child('rentalimages/rentalImg$currentTime.jpeg')
+          .putData(file!, metadata);
+
+      TaskSnapshot snapshot = await uploadTask;
+      String downloadUrl = await snapshot.ref.getDownloadURL();
+      var productId = const Uuid().v1();
+      rentalsModel rentalmodel = rentalsModel(
+        rentalProductId: productId,
+        productName: productNameController.text,
+        productDecription: productDescriptionController.text,
+        productratePerDay: productRateController.text,
+        productImage: downloadUrl, // Ensure you are saving the image URL
+      );
+
+      rentalService rentalservice = rentalService();
+      await rentalservice.createRentals(rentalmodel);
+
+      // Fluttertoast.showToast(
+      //   msg: "Product uploaded successfully",
+      //   toastLength: Toast.LENGTH_SHORT,
+      //   gravity: ToastGravity.CENTER,
+      //   backgroundColor: Colors.green,
+      //   textColor: Colors.white,
+      //   fontSize: 16.0,
+      // );
+      Navigator.of(context).pop();
+    } catch (e) {
+      print('Upload error: $e'); // Log the error for debugging
+      Fluttertoast.showToast(
+        msg: "Failed to upload Product: $e",
+        toastLength: Toast.LENGTH_SHORT,
+        gravity: ToastGravity.CENTER,
+        timeInSecForIosWeb: 1,
+        backgroundColor: Colors.red,
+        textColor: Colors.white,
+        fontSize: 16.0,
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      child: Form(
+        key: _rentalkey,
+        child: Container(
+          height: 400,
+          width: 1200,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(10),
+            color: const Color(0xff36393F),
+          ),
+          child: Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(15),
+              color: const Color(0xffEBC9A9),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                SizedBox(
+                  height: 250,
+                  width: 250,
+                  child: Column(
+                    children: [
+                      GestureDetector(
+                        onTap: () => pickedImage(),
+                        child: Container(
+                            clipBehavior: Clip.hardEdge,
+                            decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(15)),
+                            child: kIsWeb
+                                ? file != null
+                                    ? Image.memory(
+                                        file!,
+                                        fit: BoxFit.cover,
+                                      )
+                                    : Image.asset(
+                                        'images/cam placeholder.png',
+                                        fit: BoxFit.cover,
+                                      )
+                                : Image.network('src')),
+                      ),
+                      // SizedBox(
+                      //   height: 150,
+                      // ),
+                    ],
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.only(
+                    top: 50,
+                  ),
+                  child: Column(
+                    children: [
+                      SizedBox(
+                          height: 50,
+                          width: 600,
+                          child: TextFormField(
+                            controller: productNameController,
+                            style: GoogleFonts.fugazOne(
+                                color: const Color(0xff2D3037)),
+                            decoration: const InputDecoration(
+                              hintText: 'Product Name',
+                              // hintStyle: TextStyle(color: Color(0xff2D3037))
+                            ),
+                          )),
+                      const SizedBox(
+                        height: 20,
+                      ),
+                      SizedBox(
+                          height: 100,
+                          width: 600,
+                          child: TextFormField(
+                            controller: productDescriptionController,
+                            style: GoogleFonts.fugazOne(
+                                color: const Color(0xff2D3037)),
+                            keyboardType: TextInputType.multiline,
+                            minLines:
+                                3, // This sets the initial number of lines
+                            maxLines: 5,
+                            decoration: const InputDecoration(
+                              // hintStyle: TextStyle(color: Color(0xff2D3037)),
+                              hintText: 'Product description',
+                              border: UnderlineInputBorder(),
+                            ),
+                          )),
+                      const SizedBox(
+                        height: 20,
+                      ),
+                      Row(
+                        children: [
+                          SizedBox(
+                              height: 150,
+                              width: 320,
+                              child: TextFormField(
+                                controller: productRateController,
+                                style: GoogleFonts.fugazOne(
+                                    color: const Color(0xff2D3037)),
+                                decoration: const InputDecoration(
+                                  // hintStyle: TextStyle(color: Color(0xff2D3037)),
+                                  hintText: 'Product Rent Price',
+                                ),
+                              )),
+                          Padding(
+                            padding: const EdgeInsets.all(20),
+                            child: GestureDetector(
+                              onTap: () async {
+                                if (_rentalkey.currentState!.validate()) {
+                                  uploadRentalDetails();
+                                  //   try {
+                                  //     var productId = Uuid().v1();
+                                  //     rentalsModel rentalmodel = rentalsModel(
+                                  //       rentalProductId: productId,
+                                  //       productName: productNameController.text,
+                                  //       productDecription:
+                                  //           productDescriptionController.text,
+                                  //       productratePerDay:
+                                  //           productRateController.text,
+                                  //     );
+                                  //     rentalService rentalservice =
+                                  //         rentalService();
+                                  //     await rentalservice
+                                  //         .createRentals(rentalmodel);
+                                  //   } catch (e) {
+                                  //     Fluttertoast.showToast(
+                                  //       msg: "Failed to upload Product",
+                                  //       toastLength: Toast.LENGTH_SHORT,
+                                  //       gravity: ToastGravity.CENTER,
+                                  //       timeInSecForIosWeb: 1,
+                                  //       backgroundColor: Colors.red,
+                                  //       textColor: Colors.white,
+                                  //       fontSize: 16.0,
+                                  //     );
+                                  //   }
+                                }
+                              },
+                              child: Container(
+                                height: 38,
+                                width: 100,
+                                color: const Color(0xff2D3037),
+                                child: Center(
+                                    child: Text(
+                                  'Upload',
+                                  style:
+                                      GoogleFonts.fugazOne(color: Colors.white),
+                                )),
+                              ),
+                            ),
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.all(20),
+                            child: GestureDetector(
+                              onTap: () => Navigator.of(context).pop(),
+                              child: Container(
+                                height: 38,
+                                width: 100,
+                                color: const Color(0xff2D3037),
+                                child: Center(
+                                    child: Text(
+                                  'Close',
+                                  style:
+                                      GoogleFonts.fugazOne(color: Colors.white),
+                                )),
+                              ),
+                            ),
+                          ),
+                        ],
+                      )
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}

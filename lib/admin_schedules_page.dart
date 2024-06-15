@@ -2,6 +2,7 @@ import 'package:cinebyte_admin_webapp/admin_homepage.dart';
 import 'package:cinebyte_admin_webapp/admin_pages/admin_rentalservice.dart';
 import 'package:cinebyte_admin_webapp/admin_settings_page.dart';
 import 'package:cinebyte_admin_webapp/customadminattribute.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/widgets.dart';
@@ -15,8 +16,63 @@ class schedules_page extends StatefulWidget {
 }
 
 class _schedules_pageState extends State<schedules_page> {
-  final List _scripts = ['script 1', 'script 2', 'script 3', 'script 4'];
-  final List _shootings = ['shoot 1', 'shoot 2', 'shoot 3', 'shoot 4'];
+  Stream? meetingstream;
+  Stream? shootingStream;
+  Stream? userStream;
+  getMeetingStream() {
+    meetingstream =
+        FirebaseFirestore.instance.collection('meetings').snapshots();
+  }
+
+  Future<DocumentSnapshot> getUserDocument(String userId) {
+    return FirebaseFirestore.instance.collection('users').doc(userId).get();
+  }
+
+  // getSenderUserStream(DocumentSnapshot ds) {
+  //   DocumentSnapshot? userid = FirebaseFirestore.instance
+  //       .collection('users')
+  //       .doc(ds['senderUserId'])
+  //       .get() as DocumentSnapshot<Object?>?;
+  // }
+
+  // getRecieverrUserStream(DocumentSnapshot ds) {
+  //   DocumentSnapshot? recieverid = FirebaseFirestore.instance
+  //       .collection('users')
+  //       .doc(ds['receiverUserId'])
+  //       .get() as DocumentSnapshot<Object?>?;
+  // }
+
+  getShootingStream() {
+    shootingStream =
+        FirebaseFirestore.instance.collection('shootings').snapshots();
+  }
+
+  // getsenderuserid(DocumentSnapshot ds) async {
+  //   String senderId = ds['senderUserId'];
+  //   // String recieverID = ds['receiverUserId'];
+  //   DocumentSnapshot senderSnapshot = await FirebaseFirestore.instance
+  //       .collection('users')
+  //       .doc(senderId)
+  //       .get();
+  //   final sendId = senderSnapshot.data();
+  //   return sendId;
+  // }
+
+  // Future getRecieverid(DocumentSnapshot ds) async {
+  //   String recieverID = ds['receiverUserId'];
+  //   // String recieverID = ds['receiverUserId'];
+  //   DocumentSnapshot recieversnapshot = await FirebaseFirestore.instance
+  //       .collection('users')
+  //       .doc(recieverID)
+  //       .get();
+  // }
+
+  @override
+  void initState() {
+    getMeetingStream();
+    getShootingStream();
+    super.initState();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -53,7 +109,8 @@ class _schedules_pageState extends State<schedules_page> {
                                         radius: 25,
                                         backgroundColor:
                                             Color.fromARGB(255, 118, 117, 117),
-                                            backgroundImage: AssetImage('images/admin.jpg'),
+                                        backgroundImage:
+                                            AssetImage('images/admin.jpg'),
                                       ),
                                     ),
                                   ),
@@ -224,15 +281,15 @@ class _schedules_pageState extends State<schedules_page> {
                                     )),
                                     child: Column(
                                       children: [
-                                        const Icon(
+                                         Icon(
                                           Icons.calendar_month_rounded,
-                                          color: Colors.white,
+                                          color:textcolor,
                                         ),
                                         Text(
                                           'Schedules',
                                           style: GoogleFonts.fugazOne(
                                               fontSize: 12,
-                                              color: Colors.white),
+                                              color:textcolor),
                                         )
                                       ],
                                     ),
@@ -263,7 +320,8 @@ class _schedules_pageState extends State<schedules_page> {
                                         Text(
                                           'Settings',
                                           style: GoogleFonts.fugazOne(
-                                              fontSize: 12, color: Colors.white),
+                                              fontSize: 12,
+                                              color: Colors.white),
                                         )
                                       ],
                                     ),
@@ -302,35 +360,6 @@ class _schedules_pageState extends State<schedules_page> {
                                       child:
                                           App_custom_tabbar(title: 'Shootings'),
                                     ),
-                                    // Tab(
-                                    //   child: App_custom_tabbar(
-                                    //       title: 'Casting calls'),
-                                    // ),
-                                    // Tab(
-                                    //   child: App_custom_tabbar(
-                                    //       title: 'Rental services',),
-                                    // ),
-                                    // Tab(
-                                    //   child: App_custom_tabbar(title: 'Courses'),
-                                    // ),
-                                    // child: Padding(
-                                    //     padding: const EdgeInsets.only(),
-                                    //     child: GestureDetector(
-                                    //       // onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (context) => ,)),
-                                    //       child: Container(
-
-                                    //         height: 38,
-                                    //         width: 100,
-                                    //         color: Color(0xffFFC28C),
-                                    //         child: Center(
-                                    //             child: Text(
-                                    //           'Profile',
-                                    //           style: GoogleFonts.fugazOne(
-                                    //               color: Colors.black),
-                                    //         )),
-                                    //       ),
-                                    //     ),
-                                    //   ),
                                   ]),
                             )
                           ],
@@ -341,134 +370,205 @@ class _schedules_pageState extends State<schedules_page> {
                         child: Container(
                           height: 400,
                           width: 1300,
-                          // child: Image.network('src'),
                           color: const Color(0xff36393F),
                           child: TabBarView(children: [
-                            ListView.builder(
-                              itemBuilder: (context, index) {
-                                return GestureDetector(
-                                  // onTap: () => _showscriptDialog(context),
-                                  child: Container(
-                                    margin: const EdgeInsets.only(
-                                        top: 20, left: 300, right: 300),
-                                    decoration: BoxDecoration(
-                                      borderRadius: BorderRadius.circular(15),
-                                      color: const Color.fromARGB(
-                                          255, 234, 210, 178),
-                                    ),
-                                    width: 800,
-                                    height: 180,
-                                    child: Column(
-                                      children: [
-                                        Row(
-                                          mainAxisAlignment:
-                                              MainAxisAlignment.start,
-                                          children: [
-                                            const Padding(
-                                              padding: EdgeInsets.only(
-                                                  left: 20, top: 20),
-                                              child: CircleAvatar(
-                                                backgroundImage: NetworkImage(
-                                                    'https://www.shutterstock.com/image-photo/head-shot-portrait-close-smiling-600nw-1714666150.jpg'),
-                                                radius: 25,
-                                              ),
+                            StreamBuilder(
+                                stream: FirebaseFirestore.instance
+                                    .collection('meetings')
+                                    .snapshots(),
+                                builder: (context, snapshot) {
+                                  if (snapshot.connectionState ==
+                                      ConnectionState.waiting) {
+                                    return const Center(
+                                      child: CircularProgressIndicator(),
+                                    );
+                                  }
+                                  if (snapshot.hasData &&
+                                      snapshot.data!.docs.isNotEmpty) {
+                                    return ListView.builder(
+                                      itemBuilder: (context, index) {
+                                        final DocumentSnapshot ds =
+                                            snapshot.data!.docs[index];
+                                        return GestureDetector(
+                                          // onTap: () => _showscriptDialog(context),
+                                          child: Container(
+                                            margin: const EdgeInsets.only(
+                                                top: 20, left: 300, right: 300),
+                                            decoration: BoxDecoration(
+                                              borderRadius:
+                                                  BorderRadius.circular(15),
+                                              color: const Color.fromARGB(
+                                                  255, 234, 210, 178),
                                             ),
-                                            Padding(
-                                              padding: const EdgeInsets.only(
-                                                  top: 20, left: 10),
-                                              child: Text(
-                                                'Alex D Paul',
-                                                style: GoogleFonts.acme(
-                                                  color:
-                                                      const Color(0xff2D3037),
-                                                  fontSize: 20,
-                                                ),
-                                              ),
-                                            ),
-                                            Padding(
-                                              padding: const EdgeInsets.only(
-                                                  left: 400),
-                                              child: Text(
-                                                '10/11/2023',
-                                                style: GoogleFonts.acme(
-                                                    color: const Color(
-                                                        0xff2D3037)),
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                        const Padding(
-                                          padding: EdgeInsets.only(),
-                                          child: Divider(
-                                            thickness: 1,
-                                            color: Color(0xff36393F),
-                                          ),
-                                        ),
-                                        Center(
-                                          child: Row(
-                                            mainAxisAlignment:
-                                                MainAxisAlignment.start,
-                                            children: [
-                                              Center(
-                                                child: Text(
-                                                  '''       A young scientist developing a revolutionary energy source must choose  between personal gain and saving the planet. ''',
-                                                  style: GoogleFonts.lateef(),
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                        Center(
-                                          child: Padding(
-                                            padding: const EdgeInsets.only(
-                                              left: 17,
-                                            ),
-                                            child: Row(
+                                            width: 800,
+                                            height: 180,
+                                            child: Column(
                                               mainAxisAlignment:
-                                                  MainAxisAlignment.start,
+                                                  MainAxisAlignment.spaceEvenly,
                                               children: [
-                                                Text(
-                                                  'Genre : Sci-Fi , Survival Thriller ',
-                                                  style: GoogleFonts.acme(),
+                                                Row(
+                                                  mainAxisAlignment:
+                                                      MainAxisAlignment
+                                                          .center,
+                                                  children: [
+                                                    Text(
+                                                      ds['scriptName'],
+                                                      style: GoogleFonts.acme(
+                                                        color: const Color(
+                                                            0xff2D3037),
+                                                        fontSize: 20,
+                                                      ),
+                                                    ),
+                                                  ],
                                                 ),
+                                                const Padding(
+                                                  padding: EdgeInsets.only(),
+                                                  child: Divider(
+                                                    thickness: 1,
+                                                    color: Color(0xff36393F),
+                                                  ),
+                                                ),
+                                                Text(
+                                                      'Meeting Date : ${ds['confirmedDate']}',
+                                                      style: GoogleFonts.acme(
+                                                          color: const Color(
+                                                              0xff2D3037)),
+                                                    ),
+                                                Center(
+                                                  child: Row(
+                                                    mainAxisAlignment:
+                                                        MainAxisAlignment
+                                                            .spaceEvenly,
+                                                    children: [
+                                                      
+                                                      FutureBuilder<DocumentSnapshot>(
+                                                        future: getUserDocument(ds['senderUserId']),
+                                                        builder: (context, snapshot) {
+                                                          if (snapshot.connectionState == ConnectionState.waiting) {
+                                                            return const Text('Loading...');
+                                                          }
+                                                          if (!snapshot.hasData || snapshot.hasError) {
+                                                            return const Text('Error');
+                                                          }
+                                                          final senderData = snapshot.data!.data() as Map<String, dynamic>;
+                                                          return Text(
+                                                            'Sender: ${senderData['name']}',
+                                                            style: GoogleFonts.acme(color: const Color(0xff2D3037)),
+                                                          );
+                                                        },
+                                                      ),
+                                                      Center(
+                                                        child: Text(
+                                                          ds['meetingDescription'],
+                                                          style: GoogleFonts
+                                                              .lateef(),
+                                                        ),
+                                                      ),
+                                                      FutureBuilder<DocumentSnapshot>(
+                                                        future: getUserDocument(ds['receiverUserId']),
+                                                        builder: (context, snapshot) {
+                                                          if (snapshot.connectionState == ConnectionState.waiting) {
+                                                            return const Text('Loading...');
+                                                          }
+                                                          if (!snapshot.hasData || snapshot.hasError) {
+                                                            return const Text('Error');
+                                                          }
+                                                          final receiverData = snapshot.data!.data() as Map<String, dynamic>;
+                                                          return Text(
+                                                            'Receiver: ${receiverData['name']}',
+                                                            style: GoogleFonts.acme(color: const Color(0xff2D3037)),
+                                                          );
+                                                        },
+                                                      ),
+                                                    ],
+                                                  ),
+                                                ),
+                                                Center(
+                                                  child: Padding(
+                                                    padding:
+                                                        const EdgeInsets.only(
+                                                      left: 17,
+                                                    ),
+                                                    child: Row(
+                                                      mainAxisAlignment:
+                                                          MainAxisAlignment
+                                                              .center,
+                                                      children: [
+                                                        Text(
+                                                          ds['meetingType'],
+                                                          style: GoogleFonts
+                                                              .acme(),
+                                                        ),
+                                                      ],
+                                                    ),
+                                                  ),
+                                                )
                                               ],
                                             ),
                                           ),
-                                        )
-                                      ],
+                                        );
+                                      },
+                                      itemCount: snapshot.data!.docs.length,
+                                    );
+                                  }
+                                  return Center(
+                                      child: Text(
+                                    'Something Error Occured',
+                                    style: GoogleFonts.fugazOne(
+                                        color: Colors.white),
+                                  ));
+                                }),
+                            StreamBuilder(
+                                stream: shootingStream,
+                                builder: (context, snapshot) {
+                                  if (snapshot.connectionState ==
+                                      ConnectionState.waiting) {
+                                    return const Center(
+                                      child: CircularProgressIndicator(),
+                                    );
+                                  }
+                                  if (snapshot.hasData &&
+                                      snapshot.data!.docs.length != 0) {
+                                    return ListView.builder(
+                                      itemBuilder: (context, index) {
+                                        DocumentSnapshot ds =
+                                            snapshot.data!.docs[index];
+                                        return Padding(
+                                          padding:
+                                              const EdgeInsets.only(left: 0),
+                                          child: Center(
+                                              child: Container(
+                                            margin: const EdgeInsets.only(
+                                                left: 300, right: 300, top: 20),
+                                            height: 250,
+                                            decoration: BoxDecoration(
+                                              borderRadius:
+                                                  BorderRadius.circular(20),
+                                              // color: Color.fromARGB(255, 234, 210, 178),
+                                            ),
+                                            clipBehavior: Clip.hardEdge,
+                                            width: width,
+                                            child: Card(
+                                              elevation: 10,
+                                              child: Image.network(
+                                                ds['ShootingImage'],
+                                                fit: BoxFit.cover,
+                                              ),
+                                            ),
+                                          )),
+                                        );
+                                      },
+                                      itemCount: snapshot.data!.docs.length,
+                                    );
+                                  }
+                                  return Center(
+                                    child: Text(
+                                      'Something Error Occured',
+                                      style: GoogleFonts.fugazOne(
+                                          color: Colors.white),
                                     ),
-                                  ),
-                                );
-                              },
-                              itemCount: 10,
-                            ),
-                            ListView.builder(
-                              itemBuilder: (context, index) {
-                                return Padding(
-                                  padding: const EdgeInsets.only(left: 0),
-                                  child: Center(
-                                      child: Container(
-                                    margin: const EdgeInsets.only(
-                                        left: 300, right: 300, top: 20),
-                                    height: 250,
-                                    decoration: BoxDecoration(
-                                      borderRadius: BorderRadius.circular(20),
-                                      // color: Color.fromARGB(255, 234, 210, 178),
-                                    ),
-                                    clipBehavior: Clip.hardEdge,
-                                    child: Card(
-                                      child: Image.network(
-                                        'https://assets-in.bmscdn.com/discovery-catalog/events/et00038685-nrtlwupzxk-landscape.jpg',
-                                        fit: BoxFit.cover,
-                                      ),
-                                      elevation: 10,
-                                    ),
-                                    width: width,
-                                  )),
-                                );
-                              },
-                              itemCount: _shootings.length,
-                            ),
+                                  );
+                                }),
                           ]),
                         ),
                       ),

@@ -1,16 +1,58 @@
+import 'dart:io';
+
 import 'package:cinebyte_admin_webapp/admin_pages/admin_rentalservice.dart';
 import 'package:cinebyte_admin_webapp/admin_schedules_page.dart';
 import 'package:cinebyte_admin_webapp/admin_settings_page.dart';
 import 'package:cinebyte_admin_webapp/customadminattribute.dart';
+import 'package:cinebyte_admin_webapp/models/news_model.dart';
+import 'package:cinebyte_admin_webapp/services/news_Service.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/widgets.dart';
+import 'package:fluttertoast/fluttertoast.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:carousel_slider/carousel_slider.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:uuid/uuid.dart';
+import 'package:video_player/video_player.dart';
 
-class admin_homepage extends StatelessWidget {
+class admin_homepage extends StatefulWidget {
   const admin_homepage({super.key});
 
   @override
+  State<admin_homepage> createState() => _admin_homepageState();
+}
+
+class _admin_homepageState extends State<admin_homepage> {
+  Stream? feedbackStream;
+  File? selectedFile;
+  VideoPlayerController? _videoPlayerController;
+  getOnTheLoad() {
+    feedbackStream =
+        FirebaseFirestore.instance.collection('feedback').snapshots();
+  }
+
+  @override
+  void initState() {
+    getOnTheLoad();
+    // _pickedImageGallery();
+    super.initState();
+  }
+
+  @override
+  Future<void> _pickedImageGallery() async {
+    final pickedImage =
+        await ImagePicker().pickImage(source: ImageSource.gallery);
+    if (pickedImage == null) return;
+    setState(() {
+      selectedFile = File(pickedImage.path);
+    });
+  }
+
   Widget build(BuildContext context) {
     double width = MediaQuery.of(context).size.width * 0.9;
     double height = MediaQuery.of(context).size.height * 0.7;
@@ -153,15 +195,14 @@ class admin_homepage extends StatelessWidget {
                                     )),
                                     child: Column(
                                       children: [
-                                        const Icon(
+                                        Icon(
                                           Icons.home,
-                                          color: Colors.white,
+                                          color: textcolor,
                                         ),
                                         Text(
                                           'Home',
                                           style: GoogleFonts.fugazOne(
-                                              fontSize: 12,
-                                              color: Colors.white),
+                                              fontSize: 12, color: textcolor),
                                         )
                                       ],
                                     ),
@@ -372,10 +413,12 @@ class admin_homepage extends StatelessWidget {
                                 ),
                                 Center(
                                     child: Container(
-                                      decoration: BoxDecoration(borderRadius: BorderRadius.circular(15),color: Colors.black38,),
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(15),
+                                    color: Colors.black38,
+                                  ),
                                   height: 100,
                                   width: 400,
-                                  
                                   child: Column(
                                     mainAxisAlignment: MainAxisAlignment.center,
                                     children: [
@@ -386,7 +429,67 @@ class admin_homepage extends StatelessWidget {
                                       ),
                                       Positioned(
                                           child: IconButton(
-                                              onPressed: () {},
+                                              onPressed: () {
+                                                try {
+                                                  _pickedImageGallery()
+                                                      .then((value) async {
+                                                    SettableMetadata metadata =
+                                                        SettableMetadata(
+                                                            contentType:
+                                                                'image/jpeg');
+                                                    final currenttime =
+                                                        TimeOfDay.now();
+                                                    UploadTask uploadTask =
+                                                        FirebaseStorage.instance
+                                                            .ref()
+                                                            .child(
+                                                                'newsimage/news$currenttime')
+                                                            .putFile(
+                                                                selectedFile!,
+                                                                metadata);
+                                                    String newsid =
+                                                        const Uuid().v1();
+                                                    TaskSnapshot snapshot =
+                                                        await uploadTask;
+                                                    await snapshot.ref
+                                                        .getDownloadURL()
+                                                        .then((url) {
+                                                      newsModel newsmodel =
+                                                          newsModel(
+                                                              newsId: newsid,
+                                                              newsImage: url);
+                                                      newsService _newsservice =
+                                                          newsService();
+                                                      _newsservice.createnews(
+                                                          newsmodel);
+                                                      Fluttertoast.showToast(
+                                                        msg: "News uploaded",
+                                                        toastLength:
+                                                            Toast.LENGTH_SHORT,
+                                                        gravity:
+                                                            ToastGravity.CENTER,
+                                                        timeInSecForIosWeb: 1,
+                                                        backgroundColor:
+                                                            Colors.green,
+                                                        textColor: Colors.white,
+                                                        fontSize: 16.0,
+                                                      );
+                                                    });
+                                                  });
+                                                } catch (e) {
+                                                  Fluttertoast.showToast(
+                                                    msg: "Upload Failed",
+                                                    toastLength:
+                                                        Toast.LENGTH_SHORT,
+                                                    gravity:
+                                                        ToastGravity.CENTER,
+                                                    timeInSecForIosWeb: 1,
+                                                    backgroundColor: Colors.red,
+                                                    textColor: Colors.white,
+                                                    fontSize: 16.0,
+                                                  );
+                                                }
+                                              },
                                               icon: const Icon(
                                                 Icons.add_box,
                                                 color: Colors.white,
@@ -397,59 +500,177 @@ class admin_homepage extends StatelessWidget {
                                 ))
                               ],
                             ),
-                            ListView.builder(
-                              itemBuilder: (context, index) {
-                                return Column(
-                                  children: [
-                                    Row(
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.spaceEvenly,
-                                      children: [
-                                        Text(
-                                          'User 1',
-                                          style: GoogleFonts.fugazOne(
-                                              color: textcolor, fontSize: 18),
-                                        ),
-                                        Text(
-                                          '''It is a long established fact that a reader will be distracted \nby the readable content of a page when looking at its layout''',
-                                          style: GoogleFonts.fugazOne(
-                                              color: Colors.white),
-                                        ),
-                                        Padding(
-                                          padding: const EdgeInsets.only(
-                                              bottom: 30, left: 20, top: 90),
-                                          child: GestureDetector(
-                                            onTap: () =>
-                                                _showfeedbackDialog(context),
-                                            child: Container(
-                                              height: 38,
-                                              width: 100,
-                                              color: const Color(0xffFFC28C),
-                                              child: Center(
-                                                  child: Text(
-                                                'Reply',
-                                                style: GoogleFonts.fugazOne(
-                                                    color: Colors.black),
-                                              )),
+                            // feedback
+                            StreamBuilder(
+                                stream: feedbackStream,
+                                builder: (context, snapshot) {
+                                  if (snapshot.connectionState ==
+                                      ConnectionState.waiting) {
+                                    return const Center(
+                                      child: CircularProgressIndicator(),
+                                    );
+                                  }
+                                  if (snapshot.hasData &&
+                                      snapshot.data!.docs.length != 0) {
+                                    return ListView.builder(
+                                      itemBuilder: (context, index) {
+                                        DocumentSnapshot ds =
+                                            snapshot.data!.docs[index];
+                                        return Column(
+                                          children: [
+                                            SizedBox(
+                                              height: 100,
+                                              width: double.infinity,
+                                              child: Row(
+                                                mainAxisAlignment:
+                                                    MainAxisAlignment
+                                                        .spaceEvenly,
+                                                children: [
+                                                  Text(
+                                                    ds['email'],
+                                                    style: GoogleFonts.fugazOne(
+                                                        color: textcolor,
+                                                        fontSize: 18),
+                                                  ),
+                                                  Text(
+                                                    ds['feedback_description'],
+                                                    style: GoogleFonts.fugazOne(
+                                                        color: Colors.white),
+                                                  ),
+                                                ],
+                                              ),
                                             ),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                    const Divider(
-                                      thickness: 1,
-                                      color: Color.fromARGB(255, 255, 255, 255),
-                                    )
-                                  ],
-                                );
-                              },
-                              itemCount: 4,
-                            ),
+                                            const Divider(
+                                              thickness: 1,
+                                              color: Color.fromARGB(
+                                                  255, 255, 255, 255),
+                                            )
+                                          ],
+                                        );
+                                      },
+                                      itemCount: 4,
+                                    );
+                                  }
+                                  return const Center(
+                                    child: Text('Data not found'),
+                                  );
+                                }),
                           ]),
                         ),
                       ),
                     ],
                   ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+void _showaddnewsDialog(BuildContext context) {
+  showDialog(
+      context: context, builder: (context) => const Alertdialogaddnews());
+}
+
+class Alertdialogaddnews extends StatefulWidget {
+  const Alertdialogaddnews({super.key});
+
+  @override
+  State<Alertdialogaddnews> createState() => _AlertdialogaddnewsState();
+}
+
+class _AlertdialogaddnewsState extends State<Alertdialogaddnews> {
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      child: Container(
+        height: 400,
+        width: 1200,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(10),
+          color: const Color(0xff36393F),
+        ),
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(15),
+            color: const Color(0xffEBC9A9),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: [
+              SizedBox(
+                height: 250,
+                width: 250,
+                child: Column(
+                  children: [
+                    GestureDetector(
+                      onTap: () {},
+                      child: Container(
+                          clipBehavior: Clip.hardEdge,
+                          decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(15)),
+                          child: Image.asset('images/cam placeholder.png')),
+                    ),
+                    // SizedBox(
+                    //   height: 150,
+                    // ),
+                  ],
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.only(
+                  top: 50,
+                ),
+                child: Column(
+                  children: [
+                    const SizedBox(
+                      height: 20,
+                    ),
+                    const SizedBox(
+                      height: 20,
+                    ),
+                    Row(
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.all(20),
+                          child: GestureDetector(
+                            // onTap: () => _alertdialogaddcourse2ndpage(context),
+                            child: Container(
+                              height: 38,
+                              width: 100,
+                              color: const Color(0xff2D3037),
+                              child: Center(
+                                  child: Text(
+                                'Add',
+                                style:
+                                    GoogleFonts.fugazOne(color: Colors.white),
+                              )),
+                            ),
+                          ),
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.all(20),
+                          child: GestureDetector(
+                            onTap: () => Navigator.of(context).pop(),
+                            child: Container(
+                              height: 38,
+                              width: 100,
+                              color: const Color(0xff2D3037),
+                              child: Center(
+                                  child: Text(
+                                'Close',
+                                style:
+                                    GoogleFonts.fugazOne(color: Colors.white),
+                              )),
+                            ),
+                          ),
+                        ),
+                      ],
+                    )
+                  ],
                 ),
               ),
             ],

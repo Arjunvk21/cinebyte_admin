@@ -1,15 +1,14 @@
 import 'package:cinebyte_admin_webapp/admin_homepage.dart';
-import 'package:cinebyte_admin_webapp/admin_networking.dart';
-import 'package:cinebyte_admin_webapp/admin_pages/admin_castingcalls.dart';
-import 'package:cinebyte_admin_webapp/admin_pages/admin_feedback.dart';
-import 'package:cinebyte_admin_webapp/admin_pages/admin_firstpage.dart';
 import 'package:cinebyte_admin_webapp/admin_pages/admin_getstarted.dart';
-import 'package:cinebyte_admin_webapp/admin_pages/admin_menu.dart';
-import 'package:cinebyte_admin_webapp/admin_pages/admin_profiletabview.dart';
-import 'package:cinebyte_admin_webapp/admin_pages/admin_rentalservice.dart';
+import 'package:cinebyte_admin_webapp/firebase_options.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 
-void main() {
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
   runApp(const MyApp());
 }
 

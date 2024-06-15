@@ -144,7 +144,7 @@ class _App_custom_tabbarState extends State<App_custom_tabbar> {
               child: Text(
                 widget.title,
                 style: GoogleFonts.fugazOne(
-                  fontSize: 14,
+                  fontSize: 12,
                 ),
                 overflow: TextOverflow.visible,
               ),

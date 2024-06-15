@@ -1,10 +1,14 @@
+import 'dart:io';
+
 import 'package:cinebyte_admin_webapp/admin_homepage.dart';
 import 'package:cinebyte_admin_webapp/admin_pages/admin_rentalservice.dart';
 import 'package:cinebyte_admin_webapp/admin_schedules_page.dart';
 import 'package:cinebyte_admin_webapp/customadminattribute.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/widgets.dart';
+import 'package:fluttertoast/fluttertoast.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 class settings_page extends StatefulWidget {
@@ -15,8 +19,6 @@ class settings_page extends StatefulWidget {
 }
 
 class _settings_pageState extends State<settings_page> {
-  final List _userslist = ['userr 1', 'userr 1', 'userr 1', 'userr 1'];
-
   @override
   Widget build(BuildContext context) {
     double width = MediaQuery.of(context).size.width * 0.9;
@@ -52,7 +54,8 @@ class _settings_pageState extends State<settings_page> {
                                         radius: 25,
                                         backgroundColor:
                                             Color.fromARGB(255, 118, 117, 117),
-                                            backgroundImage: AssetImage('images/admin.jpg'),
+                                        backgroundImage:
+                                            AssetImage('images/admin.jpg'),
                                       ),
                                     ),
                                   ),
@@ -255,15 +258,14 @@ class _settings_pageState extends State<settings_page> {
                                     )),
                                     child: Column(
                                       children: [
-                                        const Icon(
+                                        Icon(
                                           Icons.settings,
-                                          color: Colors.white,
+                                          color: textcolor,
                                         ),
                                         Text(
                                           'Settings',
                                           style: GoogleFonts.fugazOne(
-                                              fontSize: 12,
-                                              color: Colors.white),
+                                              fontSize: 12, color: textcolor),
                                         )
                                       ],
                                     ),
@@ -347,77 +349,108 @@ class _settings_pageState extends State<settings_page> {
                           // child: Image.network('src'),
                           color: const Color(0xff36393F),
                           child: TabBarView(children: [
-                            ListView.builder(
-                              itemBuilder: (context, index) {
-                                return GestureDetector(
-                                  onTap: () => _showuserDialog(context),
-                                  child: Container(
-                                    margin: const EdgeInsets.only(
-                                        top: 40, left: 400, right: 400),
-                                    decoration: BoxDecoration(
-                                      borderRadius: BorderRadius.circular(15),
-                                      color: const Color.fromARGB(
-                                          255, 234, 210, 178),
-                                    ),
-                                    width: width,
-                                    height: 150,
-                                    child: Center(
-                                      child: Row(
-                                        children: [
-                                          const Padding(
-                                              padding:
-                                                  EdgeInsets.only(left: 30),
-                                              child: CircleAvatar(
-                                                radius: 45,
-                                                backgroundImage: NetworkImage(
-                                                    'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRPzVgo3yqoEmk3EEo2WPIDK7W5n4Mk_vinDYtsDKmfGg&s'),
-                                              )),
-                                          Column(
-                                            mainAxisAlignment:
-                                                MainAxisAlignment.center,
-                                            children: [
-                                              Padding(
-                                                padding: const EdgeInsets.only(
-                                                    left: 20),
-                                                child: Text(
-                                                  'Prithviraj productions',
-                                                  style: GoogleFonts.acme(
-                                                      fontSize: 20),
-                                                ),
-                                              ),
-                                              Padding(
-                                                padding: const EdgeInsets.only(
-                                                    left: 10),
-                                                child: Text(
-                                                  'prithvirajproduction@gmail.com',
-                                                  style: GoogleFonts.acme(
-                                                      fontSize: 12),
-                                                ),
-                                              ),
-                                              Padding(
-                                                padding: const EdgeInsets.only(
-                                                    right: 70, bottom: 10),
-                                                child: Text(
-                                                  '+91 9454737782',
-                                                  style: GoogleFonts.acme(
-                                                      fontSize: 12),
-                                                ),
-                                              )
-                                            ],
-                                          ),
-                                          // Padding(
-                                          //   padding: const EdgeInsets.only(left: 20, top: 70),
-                                          //   child: IconButton(
-                                          //       onPressed: () {}, icon: Icon(Icons.add_card_rounded)),
-                                          // )
-                                        ],
+                            StreamBuilder(
+                                stream: FirebaseFirestore.instance
+                                    .collection('users')
+                                    .snapshots(),
+                                builder: (context, snapshot) {
+                                  if (snapshot.connectionState ==
+                                      ConnectionState.waiting) {
+                                    return const Center(
+                                      child: CircularProgressIndicator(),
+                                    );
+                                  }
+                                  if (snapshot.hasData &&
+                                      snapshot.data!.docs.isEmpty) {
+                                    return Center(
+                                      child: Text(
+                                        'No Users Found',
+                                        style: GoogleFonts.fugazOne(
+                                            color: Colors.white),
                                       ),
+                                    );
+                                  }
+                                  if (snapshot.hasData &&
+                                      snapshot.data!.docs.isNotEmpty) {
+                                    return ListView.builder(
+                                      itemBuilder: (context, index) {
+                                        DocumentSnapshot ds =
+                                            snapshot.data!.docs[index];
+                                        return GestureDetector(
+                                          onTap: () {
+                                            _showuserDialog(context, ds);
+                                          },
+                                          child: Container(
+                                            margin: const EdgeInsets.only(
+                                                top: 40, left: 400, right: 400),
+                                            decoration: BoxDecoration(
+                                              borderRadius:
+                                                  BorderRadius.circular(15),
+                                              color: const Color.fromARGB(
+                                                  255, 234, 210, 178),
+                                            ),
+                                            width: width,
+                                            height: 150,
+                                            child: Center(
+                                              child: Row(
+                                                children: [
+                                                  Padding(
+                                                      padding:
+                                                          const EdgeInsets.only(
+                                                              left: 30),
+                                                      child: CircleAvatar(
+                                                        radius: 40,
+                                                        backgroundImage:
+                                                            NetworkImage(
+                                                                ds['image']),
+                                                      )),
+                                                  SizedBox(
+                                                    width: 50,
+                                                  ),
+                                                  Column(
+                                                    mainAxisAlignment:
+                                                        MainAxisAlignment
+                                                            .center,
+                                                    children: [
+                                                      Text(
+                                                        ds['name'],
+                                                        style: GoogleFonts.acme(
+                                                            fontSize: 20),
+                                                      ),
+                                                      Text(
+                                                        ds['email'],
+                                                        style: GoogleFonts.acme(
+                                                            fontSize: 15),
+                                                      ),
+                                                      Text(
+                                                        ds['skill'],
+                                                        style: GoogleFonts.acme(
+                                                            fontSize: 15),
+                                                      )
+                                                    ],
+                                                  ),
+                                                  // Padding(
+                                                  //   padding: const EdgeInsets.only(left: 20, top: 70),
+                                                  //   child: IconButton(
+                                                  //       onPressed: () {}, icon: Icon(Icons.add_card_rounded)),
+                                                  // )
+                                                ],
+                                              ),
+                                            ),
+                                          ),
+                                        );
+                                      },
+                                      itemCount: snapshot.data!.docs.length,
+                                    );
+                                  }
+                                  return Center(
+                                    child: Text(
+                                      'Something Error Occured',
+                                      style: GoogleFonts.fugazOne(
+                                          color: Colors.white),
                                     ),
-                                  ),
-                                );
-                              },
-                              itemCount: _userslist.length,
-                            ),
+                                  );
+                                }),
                             Builder(builder: (context) {
                               return ListView(
                                 children: [
@@ -432,7 +465,8 @@ class _settings_pageState extends State<settings_page> {
                                               backgroundColor: Colors.white,
                                               child: CircleAvatar(
                                                 radius: 60,
-                                                backgroundImage: AssetImage('images/admin.jpg'),
+                                                backgroundImage: AssetImage(
+                                                    'images/admin.jpg'),
                                               ),
                                             ),
                                           ),
@@ -474,7 +508,7 @@ class _settings_pageState extends State<settings_page> {
                                           ),
                                         ],
                                       ),
-                                      SizedBox(
+                                      const SizedBox(
                                         height: 60,
                                       ),
                                       const Divider(
@@ -700,13 +734,23 @@ class _settings_pageState extends State<settings_page> {
   }
 }
 
-_showuserDialog(BuildContext context) {
-  showDialog(context: context, builder: (context) => const Alertdialoguser());
+_showuserDialog(BuildContext context, DocumentSnapshot ds) {
+  showDialog(
+      context: context,
+      builder: (context) => Alertdialoguser(
+            data: ds,
+          ));
 }
 
-class Alertdialoguser extends StatelessWidget {
-  const Alertdialoguser({super.key});
+class Alertdialoguser extends StatefulWidget {
+  DocumentSnapshot? data;
+  Alertdialoguser({super.key, this.data});
 
+  @override
+  State<Alertdialoguser> createState() => _AlertdialoguserState();
+}
+
+class _AlertdialoguserState extends State<Alertdialoguser> {
   @override
   Widget build(BuildContext context) {
     return Dialog(
@@ -725,35 +769,30 @@ class Alertdialoguser extends StatelessWidget {
           color: const Color(0xffEBC9A9),
         ),
         child: Column(
+          mainAxisAlignment: MainAxisAlignment.start,
           children: [
-            const Padding(
+            Padding(
               padding: EdgeInsets.only(top: 20),
               child: Padding(
                 padding: EdgeInsets.only(),
                 child: CircleAvatar(
-                  backgroundImage: NetworkImage(
-                      'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRPzVgo3yqoEmk3EEo2WPIDK7W5n4Mk_vinDYtsDKmfGg&s'),
+                  backgroundImage: NetworkImage(widget.data?['image']),
                   radius: 50,
                 ), // Replace with your desired icon
               ),
             ),
-            Padding(
-              padding: const EdgeInsets.only(
-                top: 20,
-              ),
-              child: Text(
-                'Prithviraj productions',
-                style: GoogleFonts.acme(
-                  color: const Color(0xff2D3037),
-                  fontSize: 20,
-                ),
+            Text(
+              widget.data?['name'],
+              style: GoogleFonts.acme(
+                color: const Color(0xff2D3037),
+                fontSize: 20,
               ),
             ),
             Padding(
               padding: const EdgeInsets.only(),
               child: Center(
                 child: Text(
-                  'prithvirajproduction@gmail.com',
+                  widget.data?['email'],
                   style: GoogleFonts.acme(color: const Color(0xff2D3037)),
                 ),
               ),
@@ -762,7 +801,7 @@ class Alertdialoguser extends StatelessWidget {
               padding: const EdgeInsets.only(),
               child: Center(
                 child: Text(
-                  '+91 952197552',
+                  widget.data?['skill'],
                   style: GoogleFonts.acme(color: const Color(0xff2D3037)),
                 ),
               ),
@@ -835,8 +874,36 @@ class Alertdialoguser extends StatelessWidget {
                           ),
                           actions: [
                             TextButton(
-                                onPressed: () {
-                                  Navigator.of(context).pop();
+                                onPressed: () async {
+                                  try {
+                                    await FirebaseFirestore.instance
+                                        .collection('users')
+                                        .doc(widget.data?['userid'])
+                                        .delete();
+                                    await Fluttertoast.showToast(
+                                      msg: "User Deleted",
+                                      toastLength: Toast.LENGTH_SHORT,
+                                      gravity: ToastGravity.CENTER,
+                                      timeInSecForIosWeb: 1,
+                                      backgroundColor: Colors.green,
+                                      textColor: Colors.white,
+                                      fontSize: 16.0,
+                                    );
+                                    Navigator.of(context)
+                                        .push(MaterialPageRoute(
+                                      builder: (context) => settings_page(),
+                                    ));
+                                  } catch (e) {
+                                    Fluttertoast.showToast(
+                                      msg: "User Deleted",
+                                      toastLength: Toast.LENGTH_SHORT,
+                                      gravity: ToastGravity.CENTER,
+                                      timeInSecForIosWeb: 1,
+                                      backgroundColor: Colors.red,
+                                      textColor: Colors.white,
+                                      fontSize: 16.0,
+                                    );
+                                  }
                                 },
                                 child: Text(
                                   'Yes',
